@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 3 authentication -- user store and password hashing complete
+**Current focus:** Phase 3 authentication -- JWT service and AdminConfig auth extensions complete
 
 ## Current Position
 
 Phase: 3 of 12 (Authentication)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase -- COMPLETE
 Status: Executing Phase 3
-Last activity: 2026-02-10 — Completed 03-01 (Auth types, errors, password hashing, user store)
+Last activity: 2026-02-10 — Completed 03-02 (JWT service, signing key persistence, AdminConfig auth fields)
 
-Progress: [██░░░░░░░░] 19%
+Progress: [██░░░░░░░░] 21%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 5min
-- Total execution time: 0.65 hours
+- Total plans completed: 9
+- Average duration: 6min
+- Total execution time: 0.78 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [██░░░░░░░░] 19%
 |-------|-------|-------|----------|
 | 01-operator-foundation | 4/4 | 20min | 5min |
 | 02-networking-dns | 3/3 | 14min | 5min |
-| 03-authentication | 1/3 | 5min | 5min |
+| 03-authentication | 2/3 | 13min | 7min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (3min), 02-02 (3min), 02-03 (8min), 03-01 (5min)
+- Last 5 plans: 02-02 (3min), 02-03 (8min), 03-01 (5min), 03-02 (8min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -78,6 +78,11 @@ Recent decisions affecting current work:
 - AdminConfig extended with auth fields (JWT/invite expiration, SMTP, registration) in gameserver_controller.go
 - Kubernetes Secret user record pattern: Secret named user-<username> with kterodactyl.io labels for queryability
 - Argon2id with OWASP params (time=1, memory=64MB, threads=4) in PHC string format for password hashing
+- HMAC-SHA256 (HS256) JWT signing -- single service signs and verifies, simpler than asymmetric for v1
+- 2-hour refresh threshold for ShouldRefresh -- middleware issues fresh token when expiry within 2 hours
+- EnsureSigningKey as static function -- allows bootstrapping key before constructing JWTService
+- SMTPPassword excluded from AdminConfig ConfigMap -- stored in separate Secret to prevent credential exposure
+- Token ID generated with crypto/rand (8 bytes hex) for potential revocation tracking
 
 ### Pending Todos
 
@@ -100,5 +105,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 03-01-PLAN.md (auth foundation: types, errors, password hashing, user store)
+Stopped at: Completed 03-02-PLAN.md (JWT service, signing key persistence, AdminConfig auth fields)
 Resume file: None
