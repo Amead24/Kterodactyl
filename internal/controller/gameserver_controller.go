@@ -104,6 +104,18 @@ type AdminConfig struct {
 	GatewayName                string // Name of the Gateway resource HTTPRoutes attach to
 	GatewayNamespace           string // Namespace where the Gateway lives
 	GatewayControllerNamespace string // Namespace of the gateway controller data plane (for NetworkPolicy)
+
+	// Authentication
+	JWTExpirationHours    int    // JWT token lifetime in hours (default: 24)
+	InviteExpirationHours int    // Invitation token lifetime in hours (default: 72)
+	RegistrationEnabled   bool   // Allow registration with valid invite (default: true)
+	PanelURL              string // Base URL for invitation links (e.g., "https://panel.tonymead.org")
+
+	// SMTP (optional -- invites return link in response if SMTP not configured)
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPFrom     string // e.g., "Kterodactyl <noreply@example.com>"
 }
 
 // DefaultAdminConfig returns an AdminConfig with sensible default values.
@@ -127,10 +139,18 @@ func DefaultAdminConfig() *AdminConfig {
 		MaxMemory:                  resource.MustParse("8Gi"),
 		MinCPU:                     resource.MustParse("100m"),
 		MinMemory:                  resource.MustParse("128Mi"),
-		BaseDomain:                 "",                      // Empty means DNS disabled
+		BaseDomain:                 "",                    // Empty means DNS disabled
 		GatewayName:                "kterodactyl-gateway",
 		GatewayNamespace:           "kterodactyl-system",
 		GatewayControllerNamespace: "envoy-gateway-system",
+		JWTExpirationHours:         24,
+		InviteExpirationHours:      72,
+		RegistrationEnabled:        true,
+		PanelURL:                   "", // Empty means not configured
+		SMTPHost:                   "", // Empty means email disabled
+		SMTPPort:                   587,
+		SMTPUsername:               "",
+		SMTPFrom:                   "",
 	}
 }
 
@@ -203,6 +223,42 @@ func LoadAdminConfig(ctx context.Context, c client.Client, namespace string) (*A
 		cfg.GatewayControllerNamespace = v
 	}
 
+	// Parse authentication fields
+	if v, ok := cm.Data["jwtExpirationHours"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.JWTExpirationHours = n
+		}
+	}
+	if v, ok := cm.Data["inviteExpirationHours"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.InviteExpirationHours = n
+		}
+	}
+	if v, ok := cm.Data["registrationEnabled"]; ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.RegistrationEnabled = b
+		}
+	}
+	if v, ok := cm.Data["panelURL"]; ok {
+		cfg.PanelURL = v
+	}
+
+	// Parse SMTP fields
+	if v, ok := cm.Data["smtpHost"]; ok {
+		cfg.SMTPHost = v
+	}
+	if v, ok := cm.Data["smtpPort"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.SMTPPort = n
+		}
+	}
+	if v, ok := cm.Data["smtpUsername"]; ok {
+		cfg.SMTPUsername = v
+	}
+	if v, ok := cm.Data["smtpFrom"]; ok {
+		cfg.SMTPFrom = v
+	}
+
 	return cfg, nil
 }
 
@@ -215,6 +271,7 @@ func LoadAdminConfig(ctx context.Context, c client.Client, namespace string) (*A
 // +kubebuilder:rbac:groups="",resources=limitranges,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is the main reconciliation loop for GameServer resources.
