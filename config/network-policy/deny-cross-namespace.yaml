@@ -1,0 +1,45 @@
+# deny-cross-namespace.yaml
+# Reference template for the NetworkPolicy created programmatically by the operator.
+# The operator creates this policy in each user namespace via ensureNetworkPolicy().
+# This file serves as documentation and Kustomize reference only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-cross-namespace
+  namespace: user-example
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from same namespace
+    - from:
+        - podSelector: {}
+    # Allow from kterodactyl-system namespace (operator traffic)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kterodactyl-system
+  egress:
+    # Allow to same namespace
+    - to:
+        - podSelector: {}
+    # Allow DNS to kube-system (TCP + UDP port 53)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    # Allow internet but block private ranges
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16

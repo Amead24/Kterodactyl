@@ -22,11 +22,14 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,6 +51,12 @@ const (
 
 	// shutdownGracePeriod is the grace period for Pod deletion during shutdown.
 	shutdownGracePeriod int64 = 30
+
+	// defaultMaxServersGlobal is the default maximum number of GameServers cluster-wide.
+	defaultMaxServersGlobal = 100
+
+	// operatorNamespace is the namespace where the operator is deployed.
+	operatorNamespace = "kterodactyl-system"
 )
 
 // GameServerReconciler reconciles a GameServer object.
@@ -63,6 +72,7 @@ type GameServerReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups="",resources=limitranges,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
@@ -151,7 +161,8 @@ func (r *GameServerReconciler) initializeState(ctx context.Context, gs *gamev1al
 	return ctrl.Result{Requeue: true}, nil
 }
 
-// reconcileCreating handles the Creating state: validates labels, creates/updates Pod, transitions to Starting.
+// reconcileCreating handles the Creating state: validates labels, ensures namespace isolation,
+// checks server limits, creates/updates Pod, and transitions to Starting.
 func (r *GameServerReconciler) reconcileCreating(ctx context.Context, gs *gamev1alpha1.GameServer) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling Creating state", "name", gs.Name)
@@ -161,6 +172,24 @@ func (r *GameServerReconciler) reconcileCreating(ctx context.Context, gs *gamev1
 	if owner == "" {
 		log.Error(nil, "Missing owner label", "label", util.LabelOwner)
 		return r.transitionState(ctx, gs, gamev1alpha1.GameServerStateError, "MissingOwnerLabel", "GameServer is missing required owner label")
+	}
+
+	// Check global server count limit
+	gsList := &gamev1alpha1.GameServerList{}
+	if err := r.List(ctx, gsList); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to list GameServers for global count check: %w", err)
+	}
+	if len(gsList.Items) > defaultMaxServersGlobal {
+		log.Info("Global server limit exceeded", "count", len(gsList.Items), "limit", defaultMaxServersGlobal)
+		return r.transitionState(ctx, gs, gamev1alpha1.GameServerStateError, "GlobalLimitExceeded",
+			fmt.Sprintf("Global server limit of %d exceeded (current: %d)", defaultMaxServersGlobal, len(gsList.Items)))
+	}
+
+	// Ensure user namespace with ResourceQuota, LimitRange, and NetworkPolicy
+	if err := r.ensureUserNamespace(ctx, owner); err != nil {
+		log.Error(err, "Failed to ensure user namespace", "owner", owner)
+		return r.transitionState(ctx, gs, gamev1alpha1.GameServerStateError, "NamespaceSetupFailed",
+			fmt.Sprintf("Failed to set up user namespace: %v", err))
 	}
 
 	// Create or update the Pod
@@ -430,6 +459,212 @@ func (r *GameServerReconciler) reconcilePod(ctx context.Context, gs *gamev1alpha
 	log.Info("Pod reconciled", "name", pod.Name, "result", result)
 	r.Recorder.Eventf(gs, corev1.EventTypeNormal, "PodReconciled", "Pod %s %s", pod.Name, result)
 	return nil
+}
+
+// ensureUserNamespace creates or updates a user namespace with ResourceQuota, LimitRange, and NetworkPolicy.
+// The namespace is NOT owned by any GameServer (namespaces are cluster-scoped, GameServer is namespace-scoped).
+func (r *GameServerReconciler) ensureUserNamespace(ctx context.Context, username string) error {
+	log := logf.FromContext(ctx)
+	namespaceName := util.UserNamespace(username)
+	log.Info("Ensuring user namespace", "namespace", namespaceName, "user", username)
+
+	// Create or update the namespace
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespaceName,
+		},
+	}
+
+	result, err := controllerutil.CreateOrUpdate(ctx, r.Client, ns, func() error {
+		if ns.Labels == nil {
+			ns.Labels = make(map[string]string)
+		}
+		ns.Labels[util.LabelManagedByKterodactyl] = util.ManagedByValue
+		ns.Labels[util.LabelUser] = username
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create/update namespace %s: %w", namespaceName, err)
+	}
+	log.Info("Namespace reconciled", "namespace", namespaceName, "result", result)
+
+	// Ensure ResourceQuota, LimitRange, and NetworkPolicy in the namespace
+	if err := r.ensureResourceQuota(ctx, namespaceName); err != nil {
+		return fmt.Errorf("failed to ensure ResourceQuota in %s: %w", namespaceName, err)
+	}
+	if err := r.ensureLimitRange(ctx, namespaceName); err != nil {
+		return fmt.Errorf("failed to ensure LimitRange in %s: %w", namespaceName, err)
+	}
+	if err := r.ensureNetworkPolicy(ctx, namespaceName); err != nil {
+		return fmt.Errorf("failed to ensure NetworkPolicy in %s: %w", namespaceName, err)
+	}
+
+	return nil
+}
+
+// ensureResourceQuota creates or updates the ResourceQuota in a user namespace.
+func (r *GameServerReconciler) ensureResourceQuota(ctx context.Context, namespace string) error {
+	quota := &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "user-quota",
+			Namespace: namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, quota, func() error {
+		quota.Spec = corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{
+				corev1.ResourceRequestsCPU:              resource.MustParse("4"),
+				corev1.ResourceRequestsMemory:           resource.MustParse("8Gi"),
+				corev1.ResourceLimitsCPU:                resource.MustParse("8"),
+				corev1.ResourceLimitsMemory:             resource.MustParse("16Gi"),
+				corev1.ResourcePods:                     resource.MustParse("5"),
+				corev1.ResourcePersistentVolumeClaims:   resource.MustParse("5"),
+				corev1.ResourceRequestsStorage:          resource.MustParse("50Gi"),
+			},
+		}
+		return nil
+	})
+	return err
+}
+
+// ensureLimitRange creates or updates the LimitRange in a user namespace.
+func (r *GameServerReconciler) ensureLimitRange(ctx context.Context, namespace string) error {
+	lr := &corev1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gameserver-limits",
+			Namespace: namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, lr, func() error {
+		lr.Spec = corev1.LimitRangeSpec{
+			Limits: []corev1.LimitRangeItem{
+				{
+					Type: corev1.LimitTypeContainer,
+					Default: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("2"),
+						corev1.ResourceMemory: resource.MustParse("4Gi"),
+					},
+					DefaultRequest: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					},
+					Max: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("4"),
+						corev1.ResourceMemory: resource.MustParse("8Gi"),
+					},
+					Min: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					},
+				},
+			},
+		}
+		return nil
+	})
+	return err
+}
+
+// ensureNetworkPolicy creates or updates the NetworkPolicy in a user namespace.
+// Rules: deny cross-namespace, allow same namespace, allow from operator namespace,
+// allow DNS (kube-system port 53), allow internet (block private ranges).
+func (r *GameServerReconciler) ensureNetworkPolicy(ctx context.Context, namespace string) error {
+	np := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "deny-cross-namespace",
+			Namespace: namespace,
+		},
+	}
+
+	dnsPort := intstr.FromInt32(53)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, np, func() error {
+		np.Spec = networkingv1.NetworkPolicySpec{
+			// Apply to all pods in the namespace
+			PodSelector: metav1.LabelSelector{},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+				networkingv1.PolicyTypeEgress,
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					// Allow from same namespace
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							PodSelector: &metav1.LabelSelector{},
+						},
+					},
+				},
+				{
+					// Allow from kterodactyl-system namespace
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": operatorNamespace,
+								},
+							},
+						},
+					},
+				},
+			},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				{
+					// Allow to same namespace
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							PodSelector: &metav1.LabelSelector{},
+						},
+					},
+				},
+				{
+					// Allow DNS to kube-system
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": "kube-system",
+								},
+							},
+						},
+					},
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: ptrTo(corev1.ProtocolTCP),
+							Port:     &dnsPort,
+						},
+						{
+							Protocol: ptrTo(corev1.ProtocolUDP),
+							Port:     &dnsPort,
+						},
+					},
+				},
+				{
+					// Allow internet (0.0.0.0/0) but block private ranges
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							IPBlock: &networkingv1.IPBlock{
+								CIDR: "0.0.0.0/0",
+								Except: []string{
+									"10.0.0.0/8",
+									"172.16.0.0/12",
+									"192.168.0.0/16",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		return nil
+	})
+	return err
+}
+
+// ptrTo returns a pointer to the given value.
+func ptrTo[T any](v T) *T {
+	return &v
 }
 
 // transitionState transitions a GameServer to a new state with proper condition updates and events.
