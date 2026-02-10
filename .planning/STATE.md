@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 3 authentication -- JWT service and AdminConfig auth extensions complete
+**Current focus:** Phase 3 authentication -- COMPLETE (middleware, invitations, unit tests)
 
 ## Current Position
 
-Phase: 3 of 12 (Authentication)
-Plan: 2 of 3 in current phase -- COMPLETE
-Status: Executing Phase 3
-Last activity: 2026-02-10 — Completed 03-02 (JWT service, signing key persistence, AdminConfig auth fields)
+Phase: 3 of 12 (Authentication) -- COMPLETE
+Plan: 3 of 3 in current phase -- COMPLETE
+Status: Phase 3 Complete -- Ready for Phase 4
+Last activity: 2026-02-10 — Completed 03-03 (auth middleware, invite service, unit tests)
 
-Progress: [██░░░░░░░░] 21%
+Progress: [██░░░░░░░░] 24%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 6min
-- Total execution time: 0.78 hours
+- Total plans completed: 10
+- Average duration: 5min
+- Total execution time: 0.85 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [██░░░░░░░░] 21%
 |-------|-------|-------|----------|
 | 01-operator-foundation | 4/4 | 20min | 5min |
 | 02-networking-dns | 3/3 | 14min | 5min |
-| 03-authentication | 2/3 | 13min | 7min |
+| 03-authentication | 3/3 | 17min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (3min), 02-03 (8min), 03-01 (5min), 03-02 (8min)
+- Last 5 plans: 02-03 (8min), 03-01 (5min), 03-02 (8min), 03-03 (4min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -83,6 +83,12 @@ Recent decisions affecting current work:
 - EnsureSigningKey as static function -- allows bootstrapping key before constructing JWTService
 - SMTPPassword excluded from AdminConfig ConfigMap -- stored in separate Secret to prevent credential exposure
 - Token ID generated with crypto/rand (8 bytes hex) for potential revocation tracking
+- RequireAdmin is a standalone function for cleaner HTTP middleware chaining
+- Error responses use JSON-like format for consistency with Phase 4 API
+- Invite Secret named invite-<first-12-chars-of-token> for uniqueness with readability
+- SMTP failure on invite creation logs but does not fail invite -- link still returned to admin
+- go-mail with TLSOpportunistic and SMTPAuthAutoDiscover for maximum SMTP server compatibility
+- Standard Go testing for auth package (not Ginkgo) -- standalone library tests without K8s envtest
 
 ### Pending Todos
 
@@ -105,5 +111,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 03-02-PLAN.md (JWT service, signing key persistence, AdminConfig auth fields)
+Stopped at: Completed 03-03-PLAN.md (auth middleware, invite service, unit tests) -- Phase 3 COMPLETE
 Resume file: None
