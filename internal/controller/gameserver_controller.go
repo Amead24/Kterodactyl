@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -55,15 +56,130 @@ const (
 	// defaultMaxServersGlobal is the default maximum number of GameServers cluster-wide.
 	defaultMaxServersGlobal = 100
 
-	// operatorNamespace is the namespace where the operator is deployed.
-	operatorNamespace = "kterodactyl-system"
+	// defaultMaxServersPerUser is the default maximum number of GameServers per user.
+	defaultMaxServersPerUser = 5
+
+	// defaultOperatorNamespace is the default namespace where the operator is deployed.
+	defaultOperatorNamespace = "kterodactyl-system"
+
+	// adminConfigMapName is the name of the admin configuration ConfigMap.
+	adminConfigMapName = "kterodactyl-admin-config"
 )
 
 // GameServerReconciler reconciles a GameServer object.
 type GameServerReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Scheme             *runtime.Scheme
+	Recorder           record.EventRecorder
+	OperatorNamespace  string
+}
+
+// AdminConfig holds admin-configurable resource limits loaded from a ConfigMap.
+type AdminConfig struct {
+	// Server count limits
+	MaxServersGlobal  int
+	MaxServersPerUser int
+
+	// Per-user namespace quota limits
+	QuotaCPURequests    resource.Quantity
+	QuotaCPULimits      resource.Quantity
+	QuotaMemoryRequests resource.Quantity
+	QuotaMemoryLimits   resource.Quantity
+	QuotaPods           resource.Quantity
+	QuotaPVCs           resource.Quantity
+	QuotaStorage        resource.Quantity
+
+	// Per-container limits (LimitRange)
+	DefaultCPU           resource.Quantity
+	DefaultMemory        resource.Quantity
+	DefaultRequestCPU    resource.Quantity
+	DefaultRequestMemory resource.Quantity
+	MaxCPU               resource.Quantity
+	MaxMemory            resource.Quantity
+	MinCPU               resource.Quantity
+	MinMemory            resource.Quantity
+}
+
+// DefaultAdminConfig returns an AdminConfig with sensible default values.
+// These defaults are used when the ConfigMap does not exist.
+func DefaultAdminConfig() *AdminConfig {
+	return &AdminConfig{
+		MaxServersGlobal:     defaultMaxServersGlobal,
+		MaxServersPerUser:    defaultMaxServersPerUser,
+		QuotaCPURequests:     resource.MustParse("4"),
+		QuotaCPULimits:       resource.MustParse("8"),
+		QuotaMemoryRequests:  resource.MustParse("8Gi"),
+		QuotaMemoryLimits:    resource.MustParse("16Gi"),
+		QuotaPods:            resource.MustParse("5"),
+		QuotaPVCs:            resource.MustParse("5"),
+		QuotaStorage:         resource.MustParse("50Gi"),
+		DefaultCPU:           resource.MustParse("2"),
+		DefaultMemory:        resource.MustParse("4Gi"),
+		DefaultRequestCPU:    resource.MustParse("500m"),
+		DefaultRequestMemory: resource.MustParse("1Gi"),
+		MaxCPU:               resource.MustParse("4"),
+		MaxMemory:            resource.MustParse("8Gi"),
+		MinCPU:               resource.MustParse("100m"),
+		MinMemory:            resource.MustParse("128Mi"),
+	}
+}
+
+// LoadAdminConfig reads the admin config ConfigMap from the operator namespace.
+// Returns defaults if the ConfigMap does not exist.
+func LoadAdminConfig(ctx context.Context, c client.Client, namespace string) (*AdminConfig, error) {
+	cfg := DefaultAdminConfig()
+
+	cm := &corev1.ConfigMap{}
+	err := c.Get(ctx, types.NamespacedName{
+		Name:      adminConfigMapName,
+		Namespace: namespace,
+	}, cm)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// ConfigMap not found; return defaults (operator works without it)
+			return cfg, nil
+		}
+		return nil, fmt.Errorf("failed to get admin config ConfigMap: %w", err)
+	}
+
+	// Parse integer fields
+	if v, ok := cm.Data["maxServersGlobal"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MaxServersGlobal = n
+		}
+	}
+	if v, ok := cm.Data["maxServersPerUser"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MaxServersPerUser = n
+		}
+	}
+
+	// Parse resource quantities
+	parseQuantity := func(key string, target *resource.Quantity) {
+		if v, ok := cm.Data[key]; ok {
+			if q, err := resource.ParseQuantity(v); err == nil {
+				*target = q
+			}
+		}
+	}
+
+	parseQuantity("quotaCPURequests", &cfg.QuotaCPURequests)
+	parseQuantity("quotaCPULimits", &cfg.QuotaCPULimits)
+	parseQuantity("quotaMemoryRequests", &cfg.QuotaMemoryRequests)
+	parseQuantity("quotaMemoryLimits", &cfg.QuotaMemoryLimits)
+	parseQuantity("quotaPods", &cfg.QuotaPods)
+	parseQuantity("quotaPVCs", &cfg.QuotaPVCs)
+	parseQuantity("quotaStorage", &cfg.QuotaStorage)
+	parseQuantity("defaultCPU", &cfg.DefaultCPU)
+	parseQuantity("defaultMemory", &cfg.DefaultMemory)
+	parseQuantity("defaultRequestCPU", &cfg.DefaultRequestCPU)
+	parseQuantity("defaultRequestMemory", &cfg.DefaultRequestMemory)
+	parseQuantity("maxCPU", &cfg.MaxCPU)
+	parseQuantity("maxMemory", &cfg.MaxMemory)
+	parseQuantity("minCPU", &cfg.MinCPU)
+	parseQuantity("minMemory", &cfg.MinMemory)
+
+	return cfg, nil
 }
 
 // +kubebuilder:rbac:groups=game.kterodactyl.io,resources=gameservers,verbs=get;list;watch;create;update;patch;delete
@@ -74,6 +190,7 @@ type GameServerReconciler struct {
 // +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=limitranges,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is the main reconciliation loop for GameServer resources.
@@ -161,8 +278,8 @@ func (r *GameServerReconciler) initializeState(ctx context.Context, gs *gamev1al
 	return ctrl.Result{Requeue: true}, nil
 }
 
-// reconcileCreating handles the Creating state: validates labels, ensures namespace isolation,
-// checks server limits, creates/updates Pod, and transitions to Starting.
+// reconcileCreating handles the Creating state: validates labels, loads admin config,
+// checks server limits, ensures namespace isolation, creates/updates Pod, and transitions to Starting.
 func (r *GameServerReconciler) reconcileCreating(ctx context.Context, gs *gamev1alpha1.GameServer) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Reconciling Creating state", "name", gs.Name)
@@ -174,19 +291,44 @@ func (r *GameServerReconciler) reconcileCreating(ctx context.Context, gs *gamev1
 		return r.transitionState(ctx, gs, gamev1alpha1.GameServerStateError, "MissingOwnerLabel", "GameServer is missing required owner label")
 	}
 
+	// Load admin configuration from ConfigMap (returns defaults if not found)
+	opNs := r.OperatorNamespace
+	if opNs == "" {
+		opNs = defaultOperatorNamespace
+	}
+	adminCfg, err := LoadAdminConfig(ctx, r.Client, opNs)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to load admin config: %w", err)
+	}
+
 	// Check global server count limit
 	gsList := &gamev1alpha1.GameServerList{}
 	if err := r.List(ctx, gsList); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to list GameServers for global count check: %w", err)
 	}
-	if len(gsList.Items) > defaultMaxServersGlobal {
-		log.Info("Global server limit exceeded", "count", len(gsList.Items), "limit", defaultMaxServersGlobal)
+	if len(gsList.Items) > adminCfg.MaxServersGlobal {
+		log.Info("Global server limit exceeded", "count", len(gsList.Items), "limit", adminCfg.MaxServersGlobal)
 		return r.transitionState(ctx, gs, gamev1alpha1.GameServerStateError, "GlobalLimitExceeded",
-			fmt.Sprintf("Global server limit of %d exceeded (current: %d)", defaultMaxServersGlobal, len(gsList.Items)))
+			fmt.Sprintf("Global server limit of %d exceeded (current: %d)", adminCfg.MaxServersGlobal, len(gsList.Items)))
+	}
+
+	// Check per-user server count limit
+	userNamespace := util.UserNamespace(owner)
+	userGsList := &gamev1alpha1.GameServerList{}
+	if err := r.List(ctx, userGsList, client.InNamespace(userNamespace)); err != nil {
+		// If namespace doesn't exist yet, that's fine -- zero servers
+		if !errors.IsNotFound(err) {
+			return ctrl.Result{}, fmt.Errorf("failed to list GameServers for per-user count check: %w", err)
+		}
+	}
+	if len(userGsList.Items) > adminCfg.MaxServersPerUser {
+		log.Info("Per-user server limit exceeded", "user", owner, "count", len(userGsList.Items), "limit", adminCfg.MaxServersPerUser)
+		return r.transitionState(ctx, gs, gamev1alpha1.GameServerStateError, "UserLimitExceeded",
+			fmt.Sprintf("Per-user server limit of %d exceeded for user %s (current: %d)", adminCfg.MaxServersPerUser, owner, len(userGsList.Items)))
 	}
 
 	// Ensure user namespace with ResourceQuota, LimitRange, and NetworkPolicy
-	if err := r.ensureUserNamespace(ctx, owner); err != nil {
+	if err := r.ensureUserNamespace(ctx, owner, adminCfg); err != nil {
 		log.Error(err, "Failed to ensure user namespace", "owner", owner)
 		return r.transitionState(ctx, gs, gamev1alpha1.GameServerStateError, "NamespaceSetupFailed",
 			fmt.Sprintf("Failed to set up user namespace: %v", err))
@@ -463,7 +605,7 @@ func (r *GameServerReconciler) reconcilePod(ctx context.Context, gs *gamev1alpha
 
 // ensureUserNamespace creates or updates a user namespace with ResourceQuota, LimitRange, and NetworkPolicy.
 // The namespace is NOT owned by any GameServer (namespaces are cluster-scoped, GameServer is namespace-scoped).
-func (r *GameServerReconciler) ensureUserNamespace(ctx context.Context, username string) error {
+func (r *GameServerReconciler) ensureUserNamespace(ctx context.Context, username string, cfg *AdminConfig) error {
 	log := logf.FromContext(ctx)
 	namespaceName := util.UserNamespace(username)
 	log.Info("Ensuring user namespace", "namespace", namespaceName, "user", username)
@@ -489,10 +631,10 @@ func (r *GameServerReconciler) ensureUserNamespace(ctx context.Context, username
 	log.Info("Namespace reconciled", "namespace", namespaceName, "result", result)
 
 	// Ensure ResourceQuota, LimitRange, and NetworkPolicy in the namespace
-	if err := r.ensureResourceQuota(ctx, namespaceName); err != nil {
+	if err := r.ensureResourceQuota(ctx, namespaceName, cfg); err != nil {
 		return fmt.Errorf("failed to ensure ResourceQuota in %s: %w", namespaceName, err)
 	}
-	if err := r.ensureLimitRange(ctx, namespaceName); err != nil {
+	if err := r.ensureLimitRange(ctx, namespaceName, cfg); err != nil {
 		return fmt.Errorf("failed to ensure LimitRange in %s: %w", namespaceName, err)
 	}
 	if err := r.ensureNetworkPolicy(ctx, namespaceName); err != nil {
@@ -502,8 +644,8 @@ func (r *GameServerReconciler) ensureUserNamespace(ctx context.Context, username
 	return nil
 }
 
-// ensureResourceQuota creates or updates the ResourceQuota in a user namespace.
-func (r *GameServerReconciler) ensureResourceQuota(ctx context.Context, namespace string) error {
+// ensureResourceQuota creates or updates the ResourceQuota in a user namespace using admin config values.
+func (r *GameServerReconciler) ensureResourceQuota(ctx context.Context, namespace string, cfg *AdminConfig) error {
 	quota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "user-quota",
@@ -514,13 +656,13 @@ func (r *GameServerReconciler) ensureResourceQuota(ctx context.Context, namespac
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, quota, func() error {
 		quota.Spec = corev1.ResourceQuotaSpec{
 			Hard: corev1.ResourceList{
-				corev1.ResourceRequestsCPU:              resource.MustParse("4"),
-				corev1.ResourceRequestsMemory:           resource.MustParse("8Gi"),
-				corev1.ResourceLimitsCPU:                resource.MustParse("8"),
-				corev1.ResourceLimitsMemory:             resource.MustParse("16Gi"),
-				corev1.ResourcePods:                     resource.MustParse("5"),
-				corev1.ResourcePersistentVolumeClaims:   resource.MustParse("5"),
-				corev1.ResourceRequestsStorage:          resource.MustParse("50Gi"),
+				corev1.ResourceRequestsCPU:            cfg.QuotaCPURequests,
+				corev1.ResourceRequestsMemory:         cfg.QuotaMemoryRequests,
+				corev1.ResourceLimitsCPU:              cfg.QuotaCPULimits,
+				corev1.ResourceLimitsMemory:           cfg.QuotaMemoryLimits,
+				corev1.ResourcePods:                   cfg.QuotaPods,
+				corev1.ResourcePersistentVolumeClaims: cfg.QuotaPVCs,
+				corev1.ResourceRequestsStorage:        cfg.QuotaStorage,
 			},
 		}
 		return nil
@@ -528,8 +670,8 @@ func (r *GameServerReconciler) ensureResourceQuota(ctx context.Context, namespac
 	return err
 }
 
-// ensureLimitRange creates or updates the LimitRange in a user namespace.
-func (r *GameServerReconciler) ensureLimitRange(ctx context.Context, namespace string) error {
+// ensureLimitRange creates or updates the LimitRange in a user namespace using admin config values.
+func (r *GameServerReconciler) ensureLimitRange(ctx context.Context, namespace string, cfg *AdminConfig) error {
 	lr := &corev1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "gameserver-limits",
@@ -543,20 +685,20 @@ func (r *GameServerReconciler) ensureLimitRange(ctx context.Context, namespace s
 				{
 					Type: corev1.LimitTypeContainer,
 					Default: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("2"),
-						corev1.ResourceMemory: resource.MustParse("4Gi"),
+						corev1.ResourceCPU:    cfg.DefaultCPU,
+						corev1.ResourceMemory: cfg.DefaultMemory,
 					},
 					DefaultRequest: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("500m"),
-						corev1.ResourceMemory: resource.MustParse("1Gi"),
+						corev1.ResourceCPU:    cfg.DefaultRequestCPU,
+						corev1.ResourceMemory: cfg.DefaultRequestMemory,
 					},
 					Max: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("4"),
-						corev1.ResourceMemory: resource.MustParse("8Gi"),
+						corev1.ResourceCPU:    cfg.MaxCPU,
+						corev1.ResourceMemory: cfg.MaxMemory,
 					},
 					Min: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("100m"),
-						corev1.ResourceMemory: resource.MustParse("128Mi"),
+						corev1.ResourceCPU:    cfg.MinCPU,
+						corev1.ResourceMemory: cfg.MinMemory,
 					},
 				},
 			},
@@ -602,7 +744,7 @@ func (r *GameServerReconciler) ensureNetworkPolicy(ctx context.Context, namespac
 						{
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{
-									"kubernetes.io/metadata.name": operatorNamespace,
+									"kubernetes.io/metadata.name": r.operatorNs(),
 								},
 							},
 						},
@@ -660,6 +802,14 @@ func (r *GameServerReconciler) ensureNetworkPolicy(ctx context.Context, namespac
 		return nil
 	})
 	return err
+}
+
+// operatorNs returns the operator namespace, falling back to the default.
+func (r *GameServerReconciler) operatorNs() string {
+	if r.OperatorNamespace != "" {
+		return r.OperatorNamespace
+	}
+	return defaultOperatorNamespace
 }
 
 // ptrTo returns a pointer to the given value.

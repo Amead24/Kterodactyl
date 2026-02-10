@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kterodactyl-admin-config
+  namespace: kterodactyl-system
+data:
+  # Global limits
+  maxServersGlobal: "100"
+  maxServersPerUser: "5"
+  # Per-user namespace quota defaults
+  quotaCPURequests: "4"
+  quotaCPULimits: "8"
+  quotaMemoryRequests: "8Gi"
+  quotaMemoryLimits: "16Gi"
+  quotaPods: "5"
+  quotaPVCs: "5"
+  quotaStorage: "50Gi"
+  # Per-container defaults (LimitRange)
+  defaultCPU: "2"
+  defaultMemory: "4Gi"
+  defaultRequestCPU: "500m"
+  defaultRequestMemory: "1Gi"
+  maxCPU: "4"
+  maxMemory: "8Gi"
+  minCPU: "100m"
+  minMemory: "128Mi"
