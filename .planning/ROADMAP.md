@@ -13,7 +13,7 @@ Kterodactyl delivers a Kubernetes-native game server management panel in 12 phas
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Operator Foundation** - GameServer CRD and basic reconciliation controller
-- [ ] **Phase 2: Networking & DNS** - Per-server DNS names and routing infrastructure
+- [x] **Phase 2: Networking & DNS** - Per-server DNS names and routing infrastructure
 - [ ] **Phase 3: Authentication** - User invite system and session management
 - [ ] **Phase 4: API Server Bridge** - Go REST API gateway to Kubernetes
 - [ ] **Phase 5: Game Definition Framework** - Declarative game manifests and Minecraft reference
@@ -57,9 +57,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Add Gateway API dependency, networking utilities, and admin config extensions
-- [ ] 02-02-PLAN.md — Implement DNS controller with Service and HTTPRoute management
-- [ ] 02-03-PLAN.md — Update NetworkPolicy for gateway traffic and add integration tests
+- [x] 02-01-PLAN.md — Add Gateway API dependency, networking utilities, and admin config extensions
+- [x] 02-02-PLAN.md — Implement DNS controller with Service and HTTPRoute management
+- [x] 02-03-PLAN.md — Update NetworkPolicy for gateway traffic and add integration tests
 
 ### Phase 3: Authentication
 **Goal**: Admin can invite users and users can manage their own authenticated sessions
@@ -211,7 +211,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Operator Foundation | 4/4 | ✓ Complete | 2026-02-10 |
-| 2. Networking & DNS | 0/3 | Planned | - |
+| 2. Networking & DNS | 3/3 | ✓ Complete | 2026-02-10 |
 | 3. Authentication | 0/TBD | Not started | - |
 | 4. API Server Bridge | 0/TBD | Not started | - |
 | 5. Game Definition Framework | 0/TBD | Not started | - |
