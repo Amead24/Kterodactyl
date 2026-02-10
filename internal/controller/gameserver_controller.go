@@ -661,7 +661,7 @@ func (r *GameServerReconciler) ensureUserNamespace(ctx context.Context, username
 	if err := r.ensureLimitRange(ctx, namespaceName, cfg); err != nil {
 		return fmt.Errorf("failed to ensure LimitRange in %s: %w", namespaceName, err)
 	}
-	if err := r.ensureNetworkPolicy(ctx, namespaceName); err != nil {
+	if err := r.ensureNetworkPolicy(ctx, namespaceName, cfg); err != nil {
 		return fmt.Errorf("failed to ensure NetworkPolicy in %s: %w", namespaceName, err)
 	}
 
@@ -734,8 +734,8 @@ func (r *GameServerReconciler) ensureLimitRange(ctx context.Context, namespace s
 
 // ensureNetworkPolicy creates or updates the NetworkPolicy in a user namespace.
 // Rules: deny cross-namespace, allow same namespace, allow from operator namespace,
-// allow DNS (kube-system port 53), allow internet (block private ranges).
-func (r *GameServerReconciler) ensureNetworkPolicy(ctx context.Context, namespace string) error {
+// allow from gateway controller namespace, allow DNS (kube-system port 53), allow internet (block private ranges).
+func (r *GameServerReconciler) ensureNetworkPolicy(ctx context.Context, namespace string, cfg *AdminConfig) error {
 	np := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "deny-cross-namespace",
@@ -769,6 +769,18 @@ func (r *GameServerReconciler) ensureNetworkPolicy(ctx context.Context, namespac
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{
 									"kubernetes.io/metadata.name": r.operatorNs(),
+								},
+							},
+						},
+					},
+				},
+				{
+					// Allow from gateway controller namespace (e.g., envoy-gateway-system)
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": cfg.GatewayControllerNamespace,
 								},
 							},
 						},

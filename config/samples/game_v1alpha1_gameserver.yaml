@@ -34,3 +34,10 @@ spec:
     EULA: "TRUE"
     TYPE: "VANILLA"
     DIFFICULTY: "normal"
+# After reaching Ready state, the operator populates:
+# status:
+#   address: minecraft.alice.example.com
+#   ports:
+#     - name: game
+#       port: 25565
+#       protocol: TCP
