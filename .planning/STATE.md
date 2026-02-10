@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 2 of 12 (Networking & DNS)
-Plan: 1 of 3 in current phase -- COMPLETE
+Plan: 2 of 3 in current phase -- COMPLETE
 Status: Executing Phase 2
-Last activity: 2026-02-10 — Completed 02-01 (Gateway API dependency + networking utilities)
+Last activity: 2026-02-10 — Completed 02-02 (DNS controller with Service + HTTPRoute management)
 
-Progress: [██░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 12%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 5min
-- Total execution time: 0.38 hours
+- Total plans completed: 6
+- Average duration: 4min
+- Total execution time: 0.43 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-operator-foundation | 4/4 | 20min | 5min |
-| 02-networking-dns | 1/3 | 3min | 3min |
+| 02-networking-dns | 2/3 | 6min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (4min), 01-03 (6min), 01-04 (5min), 02-01 (3min)
+- Last 5 plans: 01-03 (6min), 01-04 (5min), 02-01 (3min), 02-02 (3min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -64,6 +64,11 @@ Recent decisions affecting current work:
 - BaseDomain empty string means DNS routing is disabled (opt-in)
 - Gateway API scheme registered in init() alongside existing CRD scheme
 - Networking constants in separate networking.go file, not in labels.go
+- DNS controller uses same patterns as GameServerReconciler: re-fetch before status updates, CreateOrUpdate, owner references
+- Service and HTTPRoute share the GameServer name for consistent naming
+- Cleanup logic explicitly deletes Service/HTTPRoute and clears status when leaving Ready/Allocated
+- updateConnectionInfo skips status write when address unchanged to reduce API churn
+- Dual-controller pattern: two reconcilers in same manager binary watching same CRD type with Named() disambiguation
 
 ### Pending Todos
 
@@ -86,5 +91,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 02-01-PLAN.md (Gateway API + networking utilities)
+Stopped at: Completed 02-02-PLAN.md (DNS controller with Service + HTTPRoute management)
 Resume file: None
