@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 2 complete — ready for Phase 3 planning
+**Current focus:** Phase 3 authentication -- user store and password hashing complete
 
 ## Current Position
 
-Phase: 2 of 12 (Networking & DNS)
-Plan: 3 of 3 in current phase -- COMPLETE
-Status: Phase 2 Complete
-Last activity: 2026-02-10 — Completed 02-03 (NetworkPolicy gateway access + DNS controller tests)
+Phase: 3 of 12 (Authentication)
+Plan: 1 of 3 in current phase
+Status: Executing Phase 3
+Last activity: 2026-02-10 — Completed 03-01 (Auth types, errors, password hashing, user store)
 
-Progress: [██░░░░░░░░] 16%
+Progress: [██░░░░░░░░] 19%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 5min
-- Total execution time: 0.57 hours
+- Total execution time: 0.65 hours
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [██░░░░░░░░] 16%
 |-------|-------|-------|----------|
 | 01-operator-foundation | 4/4 | 20min | 5min |
 | 02-networking-dns | 3/3 | 14min | 5min |
+| 03-authentication | 1/3 | 5min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (5min), 02-01 (3min), 02-02 (3min), 02-03 (8min)
+- Last 5 plans: 02-01 (3min), 02-02 (3min), 02-03 (8min), 03-01 (5min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -72,6 +73,11 @@ Recent decisions affecting current work:
 - DNS controller event filter: removed GenerationChangedPredicate, uses default (all changes) to react to status.state transitions
 - Gateway API CRDs loaded from GOMODCACHE for envtest; not vendored
 - Manual status patching pattern established for envtest: Status().Update() to simulate kubelet-driven transitions
+- User type defined in auth.go with full field set; jwt.go references this type (no duplication)
+- Username stored in Secret labels for efficient label-selector queries (not just in data)
+- AdminConfig extended with auth fields (JWT/invite expiration, SMTP, registration) in gameserver_controller.go
+- Kubernetes Secret user record pattern: Secret named user-<username> with kterodactyl.io labels for queryability
+- Argon2id with OWASP params (time=1, memory=64MB, threads=4) in PHC string format for password hashing
 
 ### Pending Todos
 
@@ -94,5 +100,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Phase 2 verified and complete — ready for Phase 3 planning
+Stopped at: Completed 03-01-PLAN.md (auth foundation: types, errors, password hashing, user store)
 Resume file: None
