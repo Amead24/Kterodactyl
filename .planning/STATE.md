@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 2 of 12 (Networking & DNS)
-Plan: 2 of 3 in current phase -- COMPLETE
-Status: Executing Phase 2
-Last activity: 2026-02-10 — Completed 02-02 (DNS controller with Service + HTTPRoute management)
+Plan: 3 of 3 in current phase -- COMPLETE
+Status: Phase 2 Complete
+Last activity: 2026-02-10 — Completed 02-03 (NetworkPolicy gateway access + DNS controller tests)
 
-Progress: [██░░░░░░░░] 12%
+Progress: [██░░░░░░░░] 16%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 4min
-- Total execution time: 0.43 hours
+- Total plans completed: 7
+- Average duration: 5min
+- Total execution time: 0.57 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-operator-foundation | 4/4 | 20min | 5min |
-| 02-networking-dns | 2/3 | 6min | 3min |
+| 02-networking-dns | 3/3 | 14min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (6min), 01-04 (5min), 02-01 (3min), 02-02 (3min)
+- Last 5 plans: 01-04 (5min), 02-01 (3min), 02-02 (3min), 02-03 (8min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -69,6 +69,9 @@ Recent decisions affecting current work:
 - Cleanup logic explicitly deletes Service/HTTPRoute and clears status when leaving Ready/Allocated
 - updateConnectionInfo skips status write when address unchanged to reduce API churn
 - Dual-controller pattern: two reconcilers in same manager binary watching same CRD type with Named() disambiguation
+- DNS controller event filter: removed GenerationChangedPredicate, uses default (all changes) to react to status.state transitions
+- Gateway API CRDs loaded from GOMODCACHE for envtest; not vendored
+- Manual status patching pattern established for envtest: Status().Update() to simulate kubelet-driven transitions
 
 ### Pending Todos
 
@@ -91,5 +94,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 02-02-PLAN.md (DNS controller with Service + HTTPRoute management)
+Stopped at: Completed 02-03-PLAN.md (NetworkPolicy gateway access + DNS controller tests) -- Phase 2 complete
 Resume file: None
