@@ -30,9 +30,9 @@ const (
 // Each key is a source state, and the value is a slice of valid target states.
 var ValidTransitions = map[GameServerState][]GameServerState{
 	GameServerStateCreating:  {GameServerStateStarting, GameServerStateError},
-	GameServerStateStarting:  {GameServerStateReady, GameServerStateError, GameServerStateShutdown},
-	GameServerStateReady:     {GameServerStateAllocated, GameServerStateShutdown},
-	GameServerStateAllocated: {GameServerStateReady, GameServerStateShutdown},
+	GameServerStateStarting:  {GameServerStateReady, GameServerStateCreating, GameServerStateError, GameServerStateShutdown},
+	GameServerStateReady:     {GameServerStateAllocated, GameServerStateError, GameServerStateShutdown},
+	GameServerStateAllocated: {GameServerStateReady, GameServerStateError, GameServerStateShutdown},
 	GameServerStateShutdown:  {}, // Terminal state: no transitions allowed
 	GameServerStateError:     {GameServerStateShutdown}, // Can only shutdown from error
 }
