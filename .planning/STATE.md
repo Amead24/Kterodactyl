@@ -9,28 +9,28 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 ## Current Position
 
-Phase: 1 of 12 (Operator Foundation)
-Plan: 3 of 4 in current phase
-Status: Executing
-Last activity: 2026-02-10 — Completed 01-03-PLAN.md (Namespace Isolation & Admin Resource Limits)
+Phase: 1 of 12 (Operator Foundation) -- COMPLETE
+Plan: 4 of 4 in current phase
+Status: Phase Complete
+Last activity: 2026-02-10 — Completed 01-04-PLAN.md (Integration Tests & Production Readiness)
 
-Progress: [██░░░░░░░░] 7%
+Progress: [██░░░░░░░░] 8%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 5min
-- Total execution time: 0.25 hours
+- Total execution time: 0.33 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-operator-foundation | 3/4 | 15min | 5min |
+| 01-operator-foundation | 4/4 | 20min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5min), 01-02 (4min), 01-03 (6min)
+- Last 5 plans: 01-01 (5min), 01-02 (4min), 01-03 (6min), 01-04 (5min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -56,6 +56,9 @@ Recent decisions affecting current work:
 - Operator works without admin ConfigMap by using sensible defaults
 - NetworkPolicy allows DNS via kube-system and internet minus private ranges
 - OperatorNamespace configurable via OPERATOR_NAMESPACE env var (default: kterodactyl-system)
+- envtest cannot test Starting->Ready (no kubelet); kind cluster CI covers full lifecycle
+- Manager-based test setup for true integration testing (watches, event filters, requeue all tested)
+- Unique test namespaces per test case to prevent cross-test interference
 
 ### Pending Todos
 
@@ -78,5 +81,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 01-03-PLAN.md (Namespace Isolation & Admin Resource Limits)
+Stopped at: Completed 01-04-PLAN.md (Integration Tests & Production Readiness) -- Phase 1 Complete
 Resume file: None
