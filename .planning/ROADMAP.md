@@ -37,10 +37,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can start, stop, restart, and delete game servers via kubectl
   4. Each user's servers run in isolated namespace with ResourceQuotas applied
   5. Operator runs with leader election enabled for high availability
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 01-01-PLAN.md — Scaffold Kubebuilder v4 project with GameServer CRD types and state machine
+- [ ] 01-02-PLAN.md — Implement GameServer controller reconciliation with Pod management
+- [ ] 01-03-PLAN.md — Add namespace isolation (ResourceQuota, LimitRange, NetworkPolicy) and admin ConfigMap
+- [ ] 01-04-PLAN.md — Integration tests with envtest and production readiness verification
 
 ### Phase 2: Networking & DNS
 **Goal**: Each game server is accessible at a human-readable DNS name following the pattern game.username.domain.com
@@ -205,7 +208,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Operator Foundation | 0/TBD | Not started | - |
+| 1. Operator Foundation | 0/4 | Planning complete | - |
 | 2. Networking & DNS | 0/TBD | Not started | - |
 | 3. Authentication | 0/TBD | Not started | - |
 | 4. API Server Bridge | 0/TBD | Not started | - |
