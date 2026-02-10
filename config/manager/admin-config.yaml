@@ -24,3 +24,13 @@ data:
   maxMemory: "8Gi"
   minCPU: "100m"
   minMemory: "128Mi"
+  # Networking / DNS configuration
+  # Base domain for GameServer DNS names (e.g., game.user.example.com)
+  # Leave empty to disable DNS routing
+  baseDomain: "example.com"
+  # Name of the Gateway resource that HTTPRoutes will attach to
+  gatewayName: "kterodactyl-gateway"
+  # Namespace where the Gateway resource lives
+  gatewayNamespace: "kterodactyl-system"
+  # Namespace of the gateway controller data plane (for NetworkPolicy rules)
+  gatewayControllerNamespace: "envoy-gateway-system"

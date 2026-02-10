@@ -98,29 +98,39 @@ type AdminConfig struct {
 	MaxMemory            resource.Quantity
 	MinCPU               resource.Quantity
 	MinMemory            resource.Quantity
+
+	// Networking / DNS configuration
+	BaseDomain                 string // Base domain for DNS names (empty = DNS disabled)
+	GatewayName                string // Name of the Gateway resource HTTPRoutes attach to
+	GatewayNamespace           string // Namespace where the Gateway lives
+	GatewayControllerNamespace string // Namespace of the gateway controller data plane (for NetworkPolicy)
 }
 
 // DefaultAdminConfig returns an AdminConfig with sensible default values.
 // These defaults are used when the ConfigMap does not exist.
 func DefaultAdminConfig() *AdminConfig {
 	return &AdminConfig{
-		MaxServersGlobal:     defaultMaxServersGlobal,
-		MaxServersPerUser:    defaultMaxServersPerUser,
-		QuotaCPURequests:     resource.MustParse("4"),
-		QuotaCPULimits:       resource.MustParse("8"),
-		QuotaMemoryRequests:  resource.MustParse("8Gi"),
-		QuotaMemoryLimits:    resource.MustParse("16Gi"),
-		QuotaPods:            resource.MustParse("5"),
-		QuotaPVCs:            resource.MustParse("5"),
-		QuotaStorage:         resource.MustParse("50Gi"),
-		DefaultCPU:           resource.MustParse("2"),
-		DefaultMemory:        resource.MustParse("4Gi"),
-		DefaultRequestCPU:    resource.MustParse("500m"),
-		DefaultRequestMemory: resource.MustParse("1Gi"),
-		MaxCPU:               resource.MustParse("4"),
-		MaxMemory:            resource.MustParse("8Gi"),
-		MinCPU:               resource.MustParse("100m"),
-		MinMemory:            resource.MustParse("128Mi"),
+		MaxServersGlobal:           defaultMaxServersGlobal,
+		MaxServersPerUser:          defaultMaxServersPerUser,
+		QuotaCPURequests:           resource.MustParse("4"),
+		QuotaCPULimits:             resource.MustParse("8"),
+		QuotaMemoryRequests:        resource.MustParse("8Gi"),
+		QuotaMemoryLimits:          resource.MustParse("16Gi"),
+		QuotaPods:                  resource.MustParse("5"),
+		QuotaPVCs:                  resource.MustParse("5"),
+		QuotaStorage:               resource.MustParse("50Gi"),
+		DefaultCPU:                 resource.MustParse("2"),
+		DefaultMemory:              resource.MustParse("4Gi"),
+		DefaultRequestCPU:          resource.MustParse("500m"),
+		DefaultRequestMemory:       resource.MustParse("1Gi"),
+		MaxCPU:                     resource.MustParse("4"),
+		MaxMemory:                  resource.MustParse("8Gi"),
+		MinCPU:                     resource.MustParse("100m"),
+		MinMemory:                  resource.MustParse("128Mi"),
+		BaseDomain:                 "",                      // Empty means DNS disabled
+		GatewayName:                "kterodactyl-gateway",
+		GatewayNamespace:           "kterodactyl-system",
+		GatewayControllerNamespace: "envoy-gateway-system",
 	}
 }
 
@@ -178,6 +188,20 @@ func LoadAdminConfig(ctx context.Context, c client.Client, namespace string) (*A
 	parseQuantity("maxMemory", &cfg.MaxMemory)
 	parseQuantity("minCPU", &cfg.MinCPU)
 	parseQuantity("minMemory", &cfg.MinMemory)
+
+	// Parse networking / DNS fields
+	if v, ok := cm.Data["baseDomain"]; ok {
+		cfg.BaseDomain = v
+	}
+	if v, ok := cm.Data["gatewayName"]; ok && v != "" {
+		cfg.GatewayName = v
+	}
+	if v, ok := cm.Data["gatewayNamespace"]; ok && v != "" {
+		cfg.GatewayNamespace = v
+	}
+	if v, ok := cm.Data["gatewayControllerNamespace"]; ok && v != "" {
+		cfg.GatewayControllerNamespace = v
+	}
 
 	return cfg, nil
 }

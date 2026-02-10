@@ -37,6 +37,7 @@ import (
 
 	gamev1alpha1 "github.com/kterodactyl/kterodactyl/api/v1alpha1"
 	"github.com/kterodactyl/kterodactyl/internal/controller"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -49,6 +50,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(gamev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(gatewayv1.Install(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
