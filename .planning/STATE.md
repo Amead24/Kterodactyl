@@ -5,32 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 1 complete — ready for Phase 2 planning
+**Current focus:** Phase 2 in progress — networking and DNS routing
 
 ## Current Position
 
-Phase: 1 of 12 (Operator Foundation) -- COMPLETE
-Plan: 4 of 4 in current phase
-Status: Phase 1 verified and complete
-Last activity: 2026-02-10 — Phase 1 verified (5/5 truths, all OPER requirements satisfied)
+Phase: 2 of 12 (Networking & DNS)
+Plan: 1 of 3 in current phase -- COMPLETE
+Status: Executing Phase 2
+Last activity: 2026-02-10 — Completed 02-01 (Gateway API dependency + networking utilities)
 
-Progress: [██░░░░░░░░] 8%
+Progress: [██░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 5min
-- Total execution time: 0.33 hours
+- Total execution time: 0.38 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-operator-foundation | 4/4 | 20min | 5min |
+| 02-networking-dns | 1/3 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5min), 01-02 (4min), 01-03 (6min), 01-04 (5min)
+- Last 5 plans: 01-02 (4min), 01-03 (6min), 01-04 (5min), 02-01 (3min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -59,6 +60,10 @@ Recent decisions affecting current work:
 - envtest cannot test Starting->Ready (no kubelet); kind cluster CI covers full lifecycle
 - Manager-based test setup for true integration testing (watches, event filters, requeue all tested)
 - Unique test namespaces per test case to prevent cross-test interference
+- DNS name pattern: game.username.baseDomain (e.g., minecraft.alice.example.com)
+- BaseDomain empty string means DNS routing is disabled (opt-in)
+- Gateway API scheme registered in init() alongside existing CRD scheme
+- Networking constants in separate networking.go file, not in labels.go
 
 ### Pending Todos
 
@@ -81,5 +86,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Phase 1 verified and complete — ready for Phase 2 planning
+Stopped at: Completed 02-01-PLAN.md (Gateway API + networking utilities)
 Resume file: None
