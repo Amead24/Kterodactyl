@@ -127,55 +127,57 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OPER-01 | — | Pending |
-| OPER-02 | — | Pending |
-| OPER-03 | — | Pending |
-| OPER-04 | — | Pending |
-| OPER-05 | — | Pending |
-| OPER-06 | — | Pending |
-| OPER-07 | — | Pending |
-| NET-01 | — | Pending |
-| NET-02 | — | Pending |
-| NET-03 | — | Pending |
-| NET-04 | — | Pending |
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| GAME-01 | — | Pending |
-| GAME-02 | — | Pending |
-| GAME-03 | — | Pending |
-| GAME-04 | — | Pending |
-| GAME-05 | — | Pending |
-| CONS-01 | — | Pending |
-| CONS-02 | — | Pending |
-| CONS-03 | — | Pending |
-| MOD-01 | — | Pending |
-| MOD-02 | — | Pending |
-| MOD-03 | — | Pending |
-| BKUP-01 | — | Pending |
-| BKUP-02 | — | Pending |
-| BKUP-03 | — | Pending |
-| BKUP-04 | — | Pending |
-| BKUP-05 | — | Pending |
-| OBS-01 | — | Pending |
-| OBS-02 | — | Pending |
-| OBS-03 | — | Pending |
-| OBS-04 | — | Pending |
-| HELM-01 | — | Pending |
-| HELM-02 | — | Pending |
-| HELM-03 | — | Pending |
-| HELM-04 | — | Pending |
-| DOCS-01 | — | Pending |
-| DOCS-02 | — | Pending |
-| DOCS-03 | — | Pending |
-| DOCS-04 | — | Pending |
+| OPER-01 | Phase 1 | Pending |
+| OPER-02 | Phase 1 | Pending |
+| OPER-03 | Phase 1 | Pending |
+| OPER-04 | Phase 1 | Pending |
+| OPER-05 | Phase 1 | Pending |
+| OPER-06 | Phase 1 | Pending |
+| OPER-07 | Phase 1 | Pending |
+| NET-01 | Phase 2 | Pending |
+| NET-02 | Phase 2 | Pending |
+| NET-03 | Phase 2 | Pending |
+| NET-04 | Phase 2 | Pending |
+| AUTH-01 | Phase 3 | Pending |
+| AUTH-02 | Phase 3 | Pending |
+| AUTH-03 | Phase 3 | Pending |
+| AUTH-04 | Phase 3 | Pending |
+| GAME-01 | Phase 5 | Pending |
+| GAME-02 | Phase 5 | Pending |
+| GAME-03 | Phase 5 | Pending |
+| GAME-04 | Phase 5 | Pending |
+| GAME-05 | Phase 5 | Pending |
+| CONS-01 | Phase 7 | Pending |
+| CONS-02 | Phase 7 | Pending |
+| CONS-03 | Phase 7 | Pending |
+| MOD-01 | Phase 8 | Pending |
+| MOD-02 | Phase 8 | Pending |
+| MOD-03 | Phase 8 | Pending |
+| BKUP-01 | Phase 9 | Pending |
+| BKUP-02 | Phase 9 | Pending |
+| BKUP-03 | Phase 9 | Pending |
+| BKUP-04 | Phase 9 | Pending |
+| BKUP-05 | Phase 9 | Pending |
+| OBS-01 | Phase 10 | Pending |
+| OBS-02 | Phase 10 | Pending |
+| OBS-03 | Phase 10 | Pending |
+| OBS-04 | Phase 10 | Pending |
+| HELM-01 | Phase 11 | Pending |
+| HELM-02 | Phase 11 | Pending |
+| HELM-03 | Phase 11 | Pending |
+| HELM-04 | Phase 11 | Pending |
+| DOCS-01 | Phase 12 | Pending |
+| DOCS-02 | Phase 12 | Pending |
+| DOCS-03 | Phase 12 | Pending |
+| DOCS-04 | Phase 12 | Pending |
 
 **Coverage:**
 - v1 requirements: 43 total
-- Mapped to phases: 0
-- Unmapped: 43 ⚠️
+- Mapped to phases: 43
+- Unmapped: 0
+
+**Note:** Phase 4 (API Server Bridge) and Phase 6 (Frontend UI) are infrastructure requirements that enable multiple feature requirements but don't map to specific requirement IDs. They deliver the API gateway and user interface that other requirements depend on.
 
 ---
 *Requirements defined: 2026-02-09*
-*Last updated: 2026-02-09 after initial definition*
+*Last updated: 2026-02-09 after roadmap creation*
