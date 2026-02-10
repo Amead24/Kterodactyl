@@ -69,9 +69,9 @@ const (
 // GameServerReconciler reconciles a GameServer object.
 type GameServerReconciler struct {
 	client.Client
-	Scheme             *runtime.Scheme
-	Recorder           record.EventRecorder
-	OperatorNamespace  string
+	Scheme            *runtime.Scheme
+	Recorder          record.EventRecorder
+	OperatorNamespace string
 }
 
 // AdminConfig holds admin-configurable resource limits loaded from a ConfigMap.

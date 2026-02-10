@@ -33,7 +33,7 @@ var ValidTransitions = map[GameServerState][]GameServerState{
 	GameServerStateStarting:  {GameServerStateReady, GameServerStateCreating, GameServerStateError, GameServerStateShutdown},
 	GameServerStateReady:     {GameServerStateAllocated, GameServerStateError, GameServerStateShutdown},
 	GameServerStateAllocated: {GameServerStateReady, GameServerStateError, GameServerStateShutdown},
-	GameServerStateShutdown:  {}, // Terminal state: no transitions allowed
+	GameServerStateShutdown:  {},                        // Terminal state: no transitions allowed
 	GameServerStateError:     {GameServerStateShutdown}, // Can only shutdown from error
 }
 
