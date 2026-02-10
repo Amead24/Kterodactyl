@@ -1,3 +1,10 @@
+# Full GameServer sample with all optional fields specified.
+#
+# Operations via kubectl:
+#   Create:     kubectl apply -f game_v1alpha1_gameserver.yaml
+#   Stop:       kubectl delete gameserver my-minecraft -n default
+#   Allocate:   kubectl annotate gameserver my-minecraft kterodactyl.io/allocated=true -n default
+#   Deallocate: kubectl annotate gameserver my-minecraft kterodactyl.io/allocated- -n default
 apiVersion: game.kterodactyl.io/v1alpha1
 kind: GameServer
 metadata:

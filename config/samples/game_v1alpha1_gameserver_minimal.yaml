@@ -1,0 +1,11 @@
+# Minimal GameServer sample with only required fields.
+# Proves the CRD works with minimal input for GitOps compatibility.
+apiVersion: game.kterodactyl.io/v1alpha1
+kind: GameServer
+metadata:
+  name: test-server
+  labels:
+    kterodactyl.io/owner: testuser
+spec:
+  gameType: minecraft
+  image: itzg/minecraft-server:latest
