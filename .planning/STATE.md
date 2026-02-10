@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 1 of 12 (Operator Foundation)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing
-Last activity: 2026-02-10 — Completed 01-02-PLAN.md (GameServer Controller Reconciliation Loop)
+Last activity: 2026-02-10 — Completed 01-03-PLAN.md (Namespace Isolation & Admin Resource Limits)
 
-Progress: [██░░░░░░░░] 5%
+Progress: [██░░░░░░░░] 7%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 4.5min
-- Total execution time: 0.15 hours
+- Total plans completed: 3
+- Average duration: 5min
+- Total execution time: 0.25 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-operator-foundation | 2/4 | 9min | 4.5min |
+| 01-operator-foundation | 3/4 | 15min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5min), 01-02 (4min)
+- Last 5 plans: 01-01 (5min), 01-02 (4min), 01-03 (6min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -52,6 +52,10 @@ Recent decisions affecting current work:
 - Pod RestartPolicy=Never; operator manages lifecycle, not kubelet
 - LeaderElectionID set to kterodactyl-operator.kterodactyl.io
 - AnnotationChangedPredicate used in event filter for allocation annotation detection
+- AdminConfig loaded per reconciliation from ConfigMap (no operator restart needed for config changes)
+- Operator works without admin ConfigMap by using sensible defaults
+- NetworkPolicy allows DNS via kube-system and internet minus private ranges
+- OperatorNamespace configurable via OPERATOR_NAMESPACE env var (default: kterodactyl-system)
 
 ### Pending Todos
 
@@ -74,5 +78,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 01-02-PLAN.md (GameServer Controller Reconciliation Loop)
+Stopped at: Completed 01-03-PLAN.md (Namespace Isolation & Admin Resource Limits)
 Resume file: None
