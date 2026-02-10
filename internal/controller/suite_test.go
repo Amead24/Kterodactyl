@@ -36,6 +36,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	gamev1alpha1 "github.com/kterodactyl/kterodactyl/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
@@ -60,6 +61,15 @@ func TestControllers(t *testing.T) {
 	RunSpecs(t, "Controller Suite")
 }
 
+// gatewayAPICRDPath resolves the Gateway API CRD directory from the Go module cache.
+func gatewayAPICRDPath() string {
+	gomodcache := os.Getenv("GOMODCACHE")
+	if gomodcache == "" {
+		gomodcache = filepath.Join(os.Getenv("HOME"), "go", "pkg", "mod")
+	}
+	return filepath.Join(gomodcache, "sigs.k8s.io", "gateway-api@v1.4.1", "config", "crd", "standard")
+}
+
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
@@ -69,11 +79,18 @@ var _ = BeforeSuite(func() {
 	err = gamev1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
+	// Register Gateway API types in the scheme
+	err = gatewayv1.Install(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
 	// +kubebuilder:scaffold:scheme
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "config", "crd", "bases"),
+			gatewayAPICRDPath(),
+		},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -99,7 +116,7 @@ var _ = BeforeSuite(func() {
 	}
 	Expect(k8sClient.Create(ctx, operatorNs)).To(Succeed())
 
-	// Create and start a manager with the GameServerReconciler
+	// Create and start a manager with the GameServerReconciler and DNSReconciler
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
 		Metrics: metricsserver.Options{
@@ -112,6 +129,14 @@ var _ = BeforeSuite(func() {
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
 		Recorder:          mgr.GetEventRecorderFor("gameserver-controller"),
+		OperatorNamespace: testOperatorNamespace,
+	}).SetupWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = (&DNSReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		Recorder:          mgr.GetEventRecorderFor("dns-controller"),
 		OperatorNamespace: testOperatorNamespace,
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())

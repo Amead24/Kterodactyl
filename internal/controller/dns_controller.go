@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	gamev1alpha1 "github.com/kterodactyl/kterodactyl/api/v1alpha1"
@@ -329,15 +328,14 @@ func (r *DNSReconciler) operatorNs() string {
 }
 
 // SetupWithManager sets up the DNS controller with the Manager.
+// Unlike the GameServer controller, the DNS controller uses ResourceVersionChangedPredicate
+// instead of GenerationChangedPredicate because it must react to status.state changes
+// (status updates don't increment metadata.generation).
 func (r *DNSReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&gamev1alpha1.GameServer{}).
 		Owns(&corev1.Service{}).
 		Owns(&gatewayv1.HTTPRoute{}).
-		WithEventFilter(predicate.Or(
-			predicate.GenerationChangedPredicate{},
-			predicate.AnnotationChangedPredicate{},
-		)).
 		Named("dns").
 		Complete(r)
 }
