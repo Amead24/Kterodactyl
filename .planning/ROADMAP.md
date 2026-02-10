@@ -54,10 +54,12 @@ Plans:
   2. DNS Controller automatically creates HTTPRoute resources for wildcard routing
   3. ExternalDNS provisions DNS records without manual intervention
   4. User sees connection info (DNS name and port) after server reaches Ready state
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 02-01-PLAN.md — Add Gateway API dependency, networking utilities, and admin config extensions
+- [ ] 02-02-PLAN.md — Implement DNS controller with Service and HTTPRoute management
+- [ ] 02-03-PLAN.md — Update NetworkPolicy for gateway traffic and add integration tests
 
 ### Phase 3: Authentication
 **Goal**: Admin can invite users and users can manage their own authenticated sessions
@@ -209,7 +211,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Operator Foundation | 4/4 | ✓ Complete | 2026-02-10 |
-| 2. Networking & DNS | 0/TBD | Not started | - |
+| 2. Networking & DNS | 0/3 | Planned | - |
 | 3. Authentication | 0/TBD | Not started | - |
 | 4. API Server Bridge | 0/TBD | Not started | - |
 | 5. Game Definition Framework | 0/TBD | Not started | - |
