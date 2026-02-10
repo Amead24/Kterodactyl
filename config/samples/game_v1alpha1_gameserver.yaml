@@ -1,0 +1,29 @@
+apiVersion: game.kterodactyl.io/v1alpha1
+kind: GameServer
+metadata:
+  name: my-minecraft
+  namespace: default
+  labels:
+    kterodactyl.io/owner: alice
+    kterodactyl.io/game: minecraft
+spec:
+  gameType: minecraft
+  image: itzg/minecraft-server:latest
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+  ports:
+    - name: game
+      containerPort: 25565
+      protocol: TCP
+    - name: rcon
+      containerPort: 25575
+      protocol: TCP
+  parameters:
+    EULA: "TRUE"
+    TYPE: "VANILLA"
+    DIFFICULTY: "normal"
