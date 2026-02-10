@@ -70,10 +70,12 @@ Plans:
   2. User can self-register with email and password
   3. User stays logged in across browser refresh via JWT token
   4. User can only access and manage their own game servers (isolation enforced)
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 03-01-PLAN.md — Auth types, Argon2id password hashing, and K8s Secret user store
+- [ ] 03-02-PLAN.md — JWT service with signing key persistence and AdminConfig auth extensions
+- [ ] 03-03-PLAN.md — HTTP auth middleware, invitation flow, and unit tests
 
 ### Phase 4: API Server Bridge
 **Goal**: Go REST API server acts as authenticated gateway between users and Kubernetes API
@@ -212,7 +214,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Operator Foundation | 4/4 | ✓ Complete | 2026-02-10 |
 | 2. Networking & DNS | 3/3 | ✓ Complete | 2026-02-10 |
-| 3. Authentication | 0/TBD | Not started | - |
+| 3. Authentication | 0/3 | Not started | - |
 | 4. API Server Bridge | 0/TBD | Not started | - |
 | 5. Game Definition Framework | 0/TBD | Not started | - |
 | 6. Frontend UI | 0/TBD | Not started | - |
