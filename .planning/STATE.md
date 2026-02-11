@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 4 in progress — Auth and GameServer handlers complete, admin handlers ahead of schedule
+**Current focus:** Phase 4 in progress — All handler implementations complete, plan 04-04 remaining
 
 ## Current Position
 
 Phase: 4 of 12 (API Server Bridge)
-Plan: 2 of 4 in current phase -- COMPLETE
+Plan: 3 of 4 in current phase -- COMPLETE
 Status: Executing Phase 4
-Last activity: 2026-02-11 — Completed 04-02 (auth + GameServer CRUD handlers)
+Last activity: 2026-02-11 — Completed 04-03 (game manifest + admin handlers)
 
-Progress: [███░░░░░░░] 30%
+Progress: [████░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 5min
-- Total execution time: 1.10 hours
+- Total execution time: 1.27 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [███░░░░░░░] 30%
 | 01-operator-foundation | 4/4 | 20min | 5min |
 | 02-networking-dns | 3/3 | 14min | 5min |
 | 03-authentication | 3/3 | 17min | 6min |
-| 04-api-server-bridge | 2/4 | 15min | 8min |
+| 04-api-server-bridge | 3/4 | 25min | 8min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (8min), 03-03 (4min), 04-01 (5min), 04-02 (10min)
+- Last 5 plans: 03-03 (4min), 04-01 (5min), 04-02 (10min), 04-03 (10min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -99,6 +99,10 @@ Recent decisions affecting current work:
 - Only spec.Parameters updatable after creation -- GameType, Image, Ports, Resources immutable from manifest
 - Admin self-deletion prevented to avoid orphaned admin-less clusters
 - All 16 API endpoints now have real handler implementations (handlers_auth, handlers_gameserver, handlers_games, handlers_admin)
+- UserResponse struct explicitly excludes PasswordHash -- never expose credentials in API responses
+- Admin invite handler loads AdminConfig per-request for InviteExpirationHours (defaults to 72h without ConfigMap)
+- GameResponse converts corev1.Protocol to plain string for JSON cleanliness
+- Shared test helpers consolidated into helpers_test.go with testServer wrapper pattern
 
 ### Pending Todos
 
@@ -121,5 +125,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 04-02-PLAN.md (auth + GameServer CRUD handlers)
+Stopped at: Completed 04-03-PLAN.md (game manifest + admin handlers)
 Resume file: None
