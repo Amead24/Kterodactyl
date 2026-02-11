@@ -5,6 +5,9 @@ import LoginPage from '@/pages/login';
 import RegisterPage from '@/pages/register';
 import DashboardPage from '@/pages/dashboard';
 import GamesPage from '@/pages/games';
+import ServersPage from '@/pages/servers';
+import CreateServerPage from '@/pages/create-server';
+import ServerDetailPage from '@/pages/server-detail';
 
 /** Placeholder for routes not yet implemented. */
 function Placeholder({ title }: { title: string }) {
@@ -28,9 +31,9 @@ function App() {
           <Route element={<AppShell />}>
             <Route index element={<DashboardPage />} />
             <Route path="games" element={<GamesPage />} />
-            <Route path="servers" element={<Placeholder title="My Servers" />} />
-            <Route path="servers/create" element={<Placeholder title="Create Server" />} />
-            <Route path="servers/:name" element={<Placeholder title="Server Detail" />} />
+            <Route path="servers" element={<ServersPage />} />
+            <Route path="servers/create" element={<CreateServerPage />} />
+            <Route path="servers/:name" element={<ServerDetailPage />} />
 
             {/* Admin routes */}
             <Route path="admin" element={<AdminRoute />}>
