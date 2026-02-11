@@ -94,28 +94,8 @@ func (s *Server) routes() chi.Router {
 	return r
 }
 
-// --- Placeholder handlers for endpoints implemented in Plans 02 and 03 ---
+// --- Placeholder handlers for endpoints implemented in later plans ---
 // These stubs allow the router to compile and enable health endpoint verification.
-
-func (s *Server) handleLogin(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleRegister(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleRefresh(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleListGames(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleGetGame(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
 
 func (s *Server) handleListGameServers(w http.ResponseWriter, _ *http.Request) {
 	respondError(w, http.StatusNotImplemented, "not implemented")
