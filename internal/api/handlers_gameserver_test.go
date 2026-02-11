@@ -32,6 +32,26 @@ import (
 	"github.com/kterodactyl/kterodactyl/internal/util"
 )
 
+// createTestGameServerWithState creates a GameServer with a specific lifecycle state.
+func createTestGameServerWithState(t *testing.T, k8sClient client.Client, name, namespace, owner, gameType string, state gamev1alpha1.GameServerState) {
+	t.Helper()
+	createTestGameServer(t, k8sClient, name, namespace, owner, gameType)
+
+	if state == "" {
+		return
+	}
+
+	// Update the status state
+	gs := &gamev1alpha1.GameServer{}
+	if err := k8sClient.Get(t.Context(), client.ObjectKey{Name: name, Namespace: namespace}, gs); err != nil {
+		t.Fatalf("failed to get gameserver for state update: %v", err)
+	}
+	gs.Status.State = state
+	if err := k8sClient.Status().Update(t.Context(), gs); err != nil {
+		t.Fatalf("failed to set gameserver state to %s: %v", state, err)
+	}
+}
+
 // createTestGameServer creates a GameServer CR in the fake K8s client.
 // Parameters include both EULA and TYPE to satisfy the test manifest's JSON Schema requirements.
 func createTestGameServer(t *testing.T, k8sClient client.Client, name, namespace, owner, gameType string) {
@@ -527,6 +547,216 @@ func TestHandleDeleteGameServer(t *testing.T) {
 		token := ts.generateToken(t, "alice", auth.RoleUser)
 
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/gameservers/nonexistent/", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("expected status %d, got %d: %s", http.StatusNotFound, rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestHandleStopGameServer(t *testing.T) {
+	t.Run("stop a Ready server", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		createTestGameServerWithState(t, ts.client, "my-server", "user-alice", "alice", "minecraft", gamev1alpha1.GameServerStateReady)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/my-server/stop", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
+		}
+
+		var resp GameServerResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if resp.State != string(gamev1alpha1.GameServerStateShutdown) {
+			t.Errorf("expected state %q, got %q", gamev1alpha1.GameServerStateShutdown, resp.State)
+		}
+	})
+
+	t.Run("stop an already stopped server returns 409", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		createTestGameServerWithState(t, ts.client, "stopped-server", "user-alice", "alice", "minecraft", gamev1alpha1.GameServerStateShutdown)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/stopped-server/stop", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusConflict {
+			t.Errorf("expected status %d, got %d: %s", http.StatusConflict, rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("stop a server in error state returns 409", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		createTestGameServerWithState(t, ts.client, "error-server", "user-alice", "alice", "minecraft", gamev1alpha1.GameServerStateError)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/error-server/stop", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusConflict {
+			t.Errorf("expected status %d, got %d: %s", http.StatusConflict, rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("stop not found", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/nonexistent/stop", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("expected status %d, got %d: %s", http.StatusNotFound, rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestHandleStartGameServer(t *testing.T) {
+	t.Run("start a Shutdown server", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		createTestGameServerWithState(t, ts.client, "my-server", "user-alice", "alice", "minecraft", gamev1alpha1.GameServerStateShutdown)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/my-server/start", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
+		}
+
+		var resp GameServerResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if resp.State != string(gamev1alpha1.GameServerStateCreating) {
+			t.Errorf("expected state %q, got %q", gamev1alpha1.GameServerStateCreating, resp.State)
+		}
+	})
+
+	t.Run("start an Error server", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		createTestGameServerWithState(t, ts.client, "error-server", "user-alice", "alice", "minecraft", gamev1alpha1.GameServerStateError)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/error-server/start", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
+		}
+
+		var resp GameServerResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if resp.State != string(gamev1alpha1.GameServerStateCreating) {
+			t.Errorf("expected state %q, got %q", gamev1alpha1.GameServerStateCreating, resp.State)
+		}
+	})
+
+	t.Run("start an already running server returns 409", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		createTestGameServerWithState(t, ts.client, "running-server", "user-alice", "alice", "minecraft", gamev1alpha1.GameServerStateReady)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/running-server/start", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusConflict {
+			t.Errorf("expected status %d, got %d: %s", http.StatusConflict, rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("start not found", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/nonexistent/start", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("expected status %d, got %d: %s", http.StatusNotFound, rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestHandleRestartGameServer(t *testing.T) {
+	t.Run("restart a Ready server", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		createTestGameServerWithState(t, ts.client, "my-server", "user-alice", "alice", "minecraft", gamev1alpha1.GameServerStateReady)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/my-server/restart", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
+		}
+
+		var resp GameServerResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if resp.State != string(gamev1alpha1.GameServerStateCreating) {
+			t.Errorf("expected state %q, got %q", gamev1alpha1.GameServerStateCreating, resp.State)
+		}
+	})
+
+	t.Run("restart a Shutdown server", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		createTestGameServerWithState(t, ts.client, "stopped-server", "user-alice", "alice", "minecraft", gamev1alpha1.GameServerStateShutdown)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/stopped-server/restart", nil)
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
+		}
+
+		var resp GameServerResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if resp.State != string(gamev1alpha1.GameServerStateCreating) {
+			t.Errorf("expected state %q, got %q", gamev1alpha1.GameServerStateCreating, resp.State)
+		}
+	})
+
+	t.Run("restart not found", func(t *testing.T) {
+		ts := newTestServer(t)
+		token := ts.generateToken(t, "alice", auth.RoleUser)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/nonexistent/restart", nil)
 		addAuthHeader(req, token)
 		rec := ts.doRequest(req)
 

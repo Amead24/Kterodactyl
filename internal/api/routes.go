@@ -78,6 +78,9 @@ func (s *Server) routes() chi.Router {
 				r.Get("/", s.handleGetGameServer)
 				r.Put("/", s.handleUpdateGameServer)
 				r.Delete("/", s.handleDeleteGameServer)
+				r.Post("/start", s.handleStartGameServer)
+				r.Post("/stop", s.handleStopGameServer)
+				r.Post("/restart", s.handleRestartGameServer)
 			})
 		})
 

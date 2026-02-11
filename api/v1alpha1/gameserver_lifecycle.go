@@ -33,8 +33,8 @@ var ValidTransitions = map[GameServerState][]GameServerState{
 	GameServerStateStarting:  {GameServerStateReady, GameServerStateCreating, GameServerStateError, GameServerStateShutdown},
 	GameServerStateReady:     {GameServerStateAllocated, GameServerStateError, GameServerStateShutdown},
 	GameServerStateAllocated: {GameServerStateReady, GameServerStateError, GameServerStateShutdown},
-	GameServerStateShutdown:  {},                        // Terminal state: no transitions allowed
-	GameServerStateError:     {GameServerStateShutdown}, // Can only shutdown from error
+	GameServerStateShutdown:  {GameServerStateCreating}, // Can restart from shutdown via API lifecycle endpoints
+	GameServerStateError:     {GameServerStateShutdown, GameServerStateCreating}, // Can shutdown or restart from error
 }
 
 // IsValidTransition checks whether transitioning from one state to another is allowed.

@@ -270,6 +270,125 @@ func (s *Server) handleDeleteGameServer(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// handleStartGameServer sets a Shutdown or Error GameServer's state back to Creating.
+// POST /api/v1/gameservers/{name}/start
+func (s *Server) handleStartGameServer(w http.ResponseWriter, r *http.Request) {
+	ns := namespaceFromContext(r)
+	if ns == "" {
+		respondError(w, http.StatusUnauthorized, "no namespace in context")
+		return
+	}
+
+	name := chi.URLParam(r, "name")
+	ctx := r.Context()
+
+	gs := &gamev1alpha1.GameServer{}
+	if err := s.client.Get(ctx, client.ObjectKey{Name: name, Namespace: ns}, gs); err != nil {
+		if k8serrors.IsNotFound(err) {
+			respondError(w, http.StatusNotFound, "game server not found: "+name)
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to get game server")
+		return
+	}
+
+	switch gs.Status.State {
+	case gamev1alpha1.GameServerStateCreating,
+		gamev1alpha1.GameServerStateStarting,
+		gamev1alpha1.GameServerStateReady,
+		gamev1alpha1.GameServerStateAllocated:
+		respondError(w, http.StatusConflict, "server is already running")
+		return
+	case gamev1alpha1.GameServerStateShutdown, gamev1alpha1.GameServerStateError:
+		gs.Status.State = gamev1alpha1.GameServerStateCreating
+	default:
+		gs.Status.State = gamev1alpha1.GameServerStateCreating
+	}
+
+	if err := s.client.Status().Update(ctx, gs); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to update game server state")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, gameServerToResponse(gs))
+}
+
+// handleStopGameServer sets a GameServer's state to Shutdown.
+// POST /api/v1/gameservers/{name}/stop
+func (s *Server) handleStopGameServer(w http.ResponseWriter, r *http.Request) {
+	ns := namespaceFromContext(r)
+	if ns == "" {
+		respondError(w, http.StatusUnauthorized, "no namespace in context")
+		return
+	}
+
+	name := chi.URLParam(r, "name")
+	ctx := r.Context()
+
+	gs := &gamev1alpha1.GameServer{}
+	if err := s.client.Get(ctx, client.ObjectKey{Name: name, Namespace: ns}, gs); err != nil {
+		if k8serrors.IsNotFound(err) {
+			respondError(w, http.StatusNotFound, "game server not found: "+name)
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to get game server")
+		return
+	}
+
+	switch gs.Status.State {
+	case gamev1alpha1.GameServerStateShutdown:
+		respondError(w, http.StatusConflict, "server is already stopped")
+		return
+	case gamev1alpha1.GameServerStateError:
+		respondError(w, http.StatusConflict, "server is in error state")
+		return
+	}
+
+	gs.Status.State = gamev1alpha1.GameServerStateShutdown
+
+	if err := s.client.Status().Update(ctx, gs); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to update game server state")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, gameServerToResponse(gs))
+}
+
+// handleRestartGameServer restarts a GameServer by setting its state back to Creating.
+// For Shutdown/Error servers, transitions directly to Creating.
+// For Ready/Allocated servers, transitions to Creating (operator will recreate the Pod).
+// POST /api/v1/gameservers/{name}/restart
+func (s *Server) handleRestartGameServer(w http.ResponseWriter, r *http.Request) {
+	ns := namespaceFromContext(r)
+	if ns == "" {
+		respondError(w, http.StatusUnauthorized, "no namespace in context")
+		return
+	}
+
+	name := chi.URLParam(r, "name")
+	ctx := r.Context()
+
+	gs := &gamev1alpha1.GameServer{}
+	if err := s.client.Get(ctx, client.ObjectKey{Name: name, Namespace: ns}, gs); err != nil {
+		if k8serrors.IsNotFound(err) {
+			respondError(w, http.StatusNotFound, "game server not found: "+name)
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to get game server")
+		return
+	}
+
+	// All states can restart: set back to Creating so the operator reconciler creates a new Pod
+	gs.Status.State = gamev1alpha1.GameServerStateCreating
+
+	if err := s.client.Status().Update(ctx, gs); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to update game server state")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, gameServerToResponse(gs))
+}
+
 // mergeMaps creates a new map by copying base and overlaying override values.
 // Returns an empty map (not nil) when both inputs are nil.
 func mergeMaps(base, override map[string]string) map[string]string {

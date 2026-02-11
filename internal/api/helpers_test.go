@@ -62,7 +62,7 @@ func newTestServer(t *testing.T) *testServer {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	_ = gamev1alpha1.AddToScheme(scheme)
-	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&gamev1alpha1.GameServer{}).Build()
 
 	// InviteService (uses fake client)
 	inviteSvc := auth.NewInviteService(fakeClient, testOperatorNS, nil, "https://panel.test")
