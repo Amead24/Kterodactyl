@@ -112,7 +112,7 @@ Plans:
 - [x] 05-02-PLAN.md — API schema integration, parameter validation on create/update, tests, contribution docs, and Dockerfile
 
 ### Phase 6: Frontend UI
-**Goal**: Users interact with Kterodactyl through a modern React/Next.js web interface
+**Goal**: Users interact with Kterodactyl through a modern Vite + React SPA embedded in the Go binary
 **Depends on**: Phase 4, Phase 5
 **Requirements**: (Infrastructure requirement - user-facing interface)
 **Success Criteria** (what must be TRUE):
@@ -121,10 +121,13 @@ Plans:
   3. User can launch a game server and see status updates
   4. User sees connection info (DNS name and port) after server is ready
   5. User can stop, restart, and delete their game servers from the UI
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 06-01-PLAN.md — Scaffold Vite React project and add lifecycle API endpoints
+- [ ] 06-02-PLAN.md — Auth pages, app layout, and game browser
+- [ ] 06-03-PLAN.md — Server creation with RJSF dynamic forms and server dashboard
+- [ ] 06-04-PLAN.md — Go embed SPA handler, admin pages, and build pipeline
 
 ### Phase 7: Console & Real-time Features
 **Goal**: Users can view console output and monitor resource usage in real-time
