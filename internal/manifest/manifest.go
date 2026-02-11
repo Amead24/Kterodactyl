@@ -186,7 +186,7 @@ func LoadFromDirectory(dir string) (*Loader, error) {
 			}
 
 			c := jsonschema.NewCompiler()
-			schemaURL := fmt.Sprintf("games/%s/manifest.yaml#/parameterSchema", raw.Name)
+			schemaURL := fmt.Sprintf("games/%s/parameterSchema.json", raw.Name)
 			schemaDoc, err := jsonschema.UnmarshalJSON(bytes.NewReader(schemaJSON))
 			if err != nil {
 				return nil, fmt.Errorf("manifest %s: failed to unmarshal parameter schema JSON: %w", manifestPath, err)
