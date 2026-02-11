@@ -105,10 +105,11 @@ Plans:
   3. Minecraft Java Edition works as reference game definition
   4. UI generates configuration forms automatically from game manifest schemas
   5. Documentation clearly explains how to contribute new game definitions via PR
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 05-01-PLAN.md — Manifest evolution with directory-per-game structure, JSON Schema validation, and Minecraft reference
+- [ ] 05-02-PLAN.md — API schema integration, parameter validation on create/update, tests, contribution docs, and Dockerfile
 
 ### Phase 6: Frontend UI
 **Goal**: Users interact with Kterodactyl through a modern React/Next.js web interface
@@ -219,7 +220,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. Networking & DNS | 3/3 | ✓ Complete | 2026-02-10 |
 | 3. Authentication | 3/3 | ✓ Complete | 2026-02-10 |
 | 4. API Server Bridge | 4/4 | ✓ Complete | 2026-02-10 |
-| 5. Game Definition Framework | 0/TBD | Not started | - |
+| 5. Game Definition Framework | 0/2 | In Progress | - |
 | 6. Frontend UI | 0/TBD | Not started | - |
 | 7. Console & Real-time Features | 0/TBD | Not started | - |
 | 8. Mod Support | 0/TBD | Not started | - |
