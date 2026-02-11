@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 6 frontend UI -- Plan 01 complete, continuing with Plan 02
+**Current focus:** Phase 6 frontend UI -- Plan 02 complete, continuing with Plan 03
 
 ## Current Position
 
 Phase: 6 of 12 (Frontend UI)
-Plan: 1 of 4 in current phase -- COMPLETE
+Plan: 2 of 4 in current phase -- COMPLETE
 Status: Executing Phase 6
-Last activity: 2026-02-11 — Completed 06-01-PLAN.md (frontend scaffold + lifecycle API)
+Last activity: 2026-02-11 — Completed 06-02-PLAN.md (auth pages, app layout, game browser)
 
-Progress: [█████░░░░░] 42%
+Progress: [██████░░░░] 45%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 18
 - Average duration: 5min
-- Total execution time: 1.61 hours
+- Total execution time: 1.68 hours
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [█████░░░░░] 42%
 | 03-authentication | 3/3 | 17min | 6min |
 | 04-api-server-bridge | 4/4 | 29min | 7min |
 | 05-game-definition-framework | 2/2 | 8min | 4min |
-| 06-frontend-ui | 1/4 | 8min | 8min |
+| 06-frontend-ui | 2/4 | 12min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 04-04 (4min), 05-01 (4min), 05-02 (4min), 06-01 (8min)
-- Trend: Stable (06-01 slightly longer due to npm install + shadcn init)
+- Last 5 plans: 04-04 (4min), 05-01 (4min), 05-02 (4min), 06-01 (8min), 06-02 (4min)
+- Trend: Stable (06-02 back to normal pace)
 
 *Updated after each plan completion*
 
@@ -123,6 +123,9 @@ Recent decisions affecting current work:
 - JWT stored in Zustand memory only (no localStorage) -- token lost on page refresh per security best practices
 - Status().Update() pattern for lifecycle handlers -- separates spec from status updates in K8s
 - WithStatusSubresource required for fake client when testing status sub-resource updates
+- Sidebar nav component named sidebar-nav.tsx to avoid collision with shadcn ui/sidebar.tsx primitive
+- shadcn sonner component simplified to remove next-themes dependency (not applicable in Vite SPA)
+- shadcn toast component deprecated -- sonner used directly for toast notifications
 
 ### Pending Todos
 
@@ -145,5 +148,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 06-01-PLAN.md (frontend scaffold + lifecycle API)
+Stopped at: Completed 06-02-PLAN.md (auth pages, app layout, game browser)
 Resume file: None
