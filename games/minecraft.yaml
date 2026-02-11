@@ -1,0 +1,21 @@
+name: minecraft
+displayName: "Minecraft Java Edition"
+image: itzg/minecraft-server:latest
+ports:
+  - name: game
+    containerPort: 25565
+    protocol: TCP
+parameters:
+  EULA: "TRUE"
+  TYPE: "VANILLA"
+  DIFFICULTY: "normal"
+  MODE: "survival"
+  MAX_PLAYERS: "20"
+  MEMORY: "2G"
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
