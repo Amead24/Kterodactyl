@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 6 frontend UI -- Plan 03 complete, continuing with Plan 04
+**Current focus:** Phase 6 complete -- ready for Phase 7
 
 ## Current Position
 
-Phase: 6 of 12 (Frontend UI)
-Plan: 3 of 4 in current phase -- COMPLETE
-Status: Executing Phase 6
-Last activity: 2026-02-11 — Completed 06-03-PLAN.md (server management UI)
+Phase: 6 of 12 (Frontend UI) -- COMPLETE
+Plan: 4 of 4 in current phase -- COMPLETE
+Status: Phase 6 Complete
+Last activity: 2026-02-11 — Completed 06-04-PLAN.md (SPA embed + admin pages)
 
-Progress: [██████░░░░] 48%
+Progress: [██████░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: 5min
-- Total execution time: 1.77 hours
+- Total execution time: 1.85 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [██████░░░░] 48%
 | 03-authentication | 3/3 | 17min | 6min |
 | 04-api-server-bridge | 4/4 | 29min | 7min |
 | 05-game-definition-framework | 2/2 | 8min | 4min |
-| 06-frontend-ui | 3/4 | 17min | 6min |
+| 06-frontend-ui | 4/4 | 22min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (4min), 05-02 (4min), 06-01 (8min), 06-02 (4min), 06-03 (5min)
+- Last 5 plans: 05-02 (4min), 06-01 (8min), 06-02 (4min), 06-03 (5min), 06-04 (5min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -129,6 +129,11 @@ Recent decisions affecting current work:
 - IChangeEvent imported from @rjsf/core (not @rjsf/utils) for RJSF form submit handler typing
 - Draft-07 default validator used for RJSF -- game schemas only use draft-07 features (enum, const, pattern, maxLength, default)
 - Custom ServerStatusBadge with Tailwind color classes for precise 6-state color mapping
+- SPA catch-all via r.NotFound(serveSPA().ServeHTTP) -- API routes always take priority over SPA fallback
+- go:embed all:frontend in internal/api/spa.go -- assets copied to embed location by build pipeline
+- Placeholder index.html force-tracked via git add -f -- go:embed works on fresh clones without frontend build
+- Multi-stage Dockerfile: node:22-alpine frontend stage -> golang builder with COPY --from=frontend -> distroless production
+- AlertDialog for delete confirmation in admin user management -- consistent with shadcn component library
 
 ### Pending Todos
 
@@ -151,5 +156,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 06-03-PLAN.md (server management UI with RJSF forms and lifecycle actions)
+Stopped at: Completed 06-04-PLAN.md (SPA embed + admin pages -- Phase 6 complete)
 Resume file: None
