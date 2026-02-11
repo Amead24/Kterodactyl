@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 ## Current Position
 
-Phase: 5 of 12 (Game Definition Framework)
-Plan: 1 of 2 in current phase -- COMPLETE
-Status: Executing Phase 5
-Last activity: 2026-02-11 — Completed 05-01 (manifest schema + directory-per-game)
+Phase: 5 of 12 (Game Definition Framework) -- COMPLETE
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: Phase 5 Complete
+Last activity: 2026-02-11 — Completed 05-02 (API schema integration + contribution guide)
 
-Progress: [████▌░░░░░] 37%
+Progress: [████▊░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: 5min
-- Total execution time: 1.41 hours
+- Total execution time: 1.48 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [████▌░░░░░] 37%
 | 02-networking-dns | 3/3 | 14min | 5min |
 | 03-authentication | 3/3 | 17min | 6min |
 | 04-api-server-bridge | 4/4 | 29min | 7min |
-| 05-game-definition-framework | 1/2 | 4min | 4min |
+| 05-game-definition-framework | 2/2 | 8min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (10min), 04-03 (10min), 04-04 (4min), 05-01 (4min)
+- Last 5 plans: 04-03 (10min), 04-04 (4min), 05-01 (4min), 05-02 (4min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -114,6 +114,9 @@ Recent decisions affecting current work:
 - All parameter schema properties use type: string because env vars are always strings -- constraints via enum, pattern, const, maxLength
 - Schemas compiled once during LoadFromDirectory, stored as compiledSchema on GameManifest -- no per-request compilation
 - santhosh-tekuri/jsonschema/v6 chosen over alternatives for Draft 2020-12 support and maturity
+- Update path skips schema validation when manifest not found -- defensive design for removed game definitions
+- ParameterSchema passed through as raw map[string]interface{} to API response -- no transformation, direct react-jsonschema-form consumption
+- Operator Dockerfile copies games/ directory into final image at /games for manifest loader
 
 ### Pending Todos
 
@@ -136,5 +139,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 05-01-PLAN.md
+Stopped at: Completed 05-02-PLAN.md (Phase 5 complete)
 Resume file: None
