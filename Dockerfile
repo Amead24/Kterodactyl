@@ -1,3 +1,11 @@
+# Build frontend static assets
+FROM node:22-alpine AS frontend
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ .
+RUN npm run build
+
 # Build the manager binary
 FROM golang:1.25 AS builder
 ARG TARGETOS
@@ -13,6 +21,8 @@ RUN go mod download
 
 # Copy the Go source (relies on .dockerignore to filter)
 COPY . .
+# Copy frontend build output to embed location
+COPY --from=frontend /web/dist ./internal/api/frontend
 
 # Build
 # the GOARCH has no default value to allow the binary to be built according to the host where the command

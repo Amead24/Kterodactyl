@@ -93,6 +93,10 @@ func (s *Server) routes() chi.Router {
 		})
 	})
 
+	// SPA catch-all: serve embedded frontend for any route not matched by API handlers.
+	// Must be registered AFTER all API routes so they take priority.
+	r.NotFound(serveSPA().ServeHTTP)
+
 	return r
 }
 

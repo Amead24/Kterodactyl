@@ -44,3 +44,4 @@ Thumbs.db
 # Frontend build artifacts
 web/node_modules/
 web/dist/
+internal/api/frontend/

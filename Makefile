@@ -104,8 +104,18 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 
 ##@ Build
 
+.PHONY: build-frontend
+build-frontend: ## Build frontend static assets.
+	cd web && npm ci && npm run build
+	rm -rf internal/api/frontend
+	cp -r web/dist internal/api/frontend
+
+.PHONY: dev-frontend
+dev-frontend: ## Run frontend dev server with API proxy.
+	cd web && npm run dev
+
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: manifests generate fmt vet build-frontend ## Build manager binary.
 	go build -o bin/manager cmd/main.go
 
 .PHONY: run

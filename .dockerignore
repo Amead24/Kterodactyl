@@ -9,3 +9,20 @@
 # Re-include Go module files
 !go.mod
 !go.sum
+
+# Re-include frontend source for Node.js build stage
+!web/package.json
+!web/package-lock.json
+!web/index.html
+!web/vite.config.ts
+!web/tsconfig.json
+!web/tsconfig.app.json
+!web/tsconfig.node.json
+!web/tailwind.config.ts
+!web/components.json
+!web/postcss.config.js
+!web/src/**
+!web/public/**
+
+# Re-include game definitions
+!games/**
