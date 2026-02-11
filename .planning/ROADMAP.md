@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Networking & DNS** - Per-server DNS names and routing infrastructure
 - [x] **Phase 3: Authentication** - User invite system and session management
 - [x] **Phase 4: API Server Bridge** - Go REST API gateway to Kubernetes
-- [ ] **Phase 5: Game Definition Framework** - Declarative game manifests and Minecraft reference
+- [x] **Phase 5: Game Definition Framework** - Declarative game manifests and Minecraft reference
 - [ ] **Phase 6: Frontend UI** - React/Next.js admin interface with dynamic forms
 - [ ] **Phase 7: Console & Real-time Features** - WebSocket console and resource monitoring
 - [ ] **Phase 8: Mod Support** - User mod uploads with persistent storage
@@ -108,8 +108,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Manifest evolution with directory-per-game structure, JSON Schema validation, and Minecraft reference
-- [ ] 05-02-PLAN.md — API schema integration, parameter validation on create/update, tests, contribution docs, and Dockerfile
+- [x] 05-01-PLAN.md — Manifest evolution with directory-per-game structure, JSON Schema validation, and Minecraft reference
+- [x] 05-02-PLAN.md — API schema integration, parameter validation on create/update, tests, contribution docs, and Dockerfile
 
 ### Phase 6: Frontend UI
 **Goal**: Users interact with Kterodactyl through a modern React/Next.js web interface
@@ -220,7 +220,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. Networking & DNS | 3/3 | ✓ Complete | 2026-02-10 |
 | 3. Authentication | 3/3 | ✓ Complete | 2026-02-10 |
 | 4. API Server Bridge | 4/4 | ✓ Complete | 2026-02-10 |
-| 5. Game Definition Framework | 0/2 | In Progress | - |
+| 5. Game Definition Framework | 2/2 | ✓ Complete | 2026-02-11 |
 | 6. Frontend UI | 0/TBD | Not started | - |
 | 7. Console & Real-time Features | 0/TBD | Not started | - |
 | 8. Mod Support | 0/TBD | Not started | - |
