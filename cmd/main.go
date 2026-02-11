@@ -17,9 +17,11 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -29,14 +31,19 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	gamev1alpha1 "github.com/kterodactyl/kterodactyl/api/v1alpha1"
+	"github.com/kterodactyl/kterodactyl/internal/api"
+	"github.com/kterodactyl/kterodactyl/internal/auth"
 	"github.com/kterodactyl/kterodactyl/internal/controller"
+	"github.com/kterodactyl/kterodactyl/internal/manifest"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	// +kubebuilder:scaffold:imports
 )
@@ -79,6 +86,8 @@ func main() {
 		"The directory that contains the metrics server certificate.")
 	flag.StringVar(&metricsCertName, "metrics-cert-name", "tls.crt", "The name of the metrics server certificate file.")
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
+	var apiBindAddress string
+	flag.StringVar(&apiBindAddress, "api-bind-address", ":8080", "The address the API server binds to.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	opts := zap.Options{
@@ -207,6 +216,61 @@ func main() {
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
+
+	// Bootstrap: create a direct K8s client for pre-start operations.
+	// The manager's cached client cannot be used before the manager starts.
+	directClient, err := client.New(ctrl.GetConfigOrDie(), client.Options{Scheme: scheme})
+	if err != nil {
+		setupLog.Error(err, "failed to create direct client for bootstrap")
+		os.Exit(1)
+	}
+
+	// Initialize JWT signing key (creates Secret if not found)
+	signingKey, err := auth.EnsureSigningKey(context.Background(), directClient, operatorNamespace)
+	if err != nil {
+		setupLog.Error(err, "failed to ensure JWT signing key")
+		os.Exit(1)
+	}
+
+	// Load AdminConfig for initial JWT expiration settings
+	adminCfg, err := controller.LoadAdminConfig(context.Background(), directClient, operatorNamespace)
+	if err != nil {
+		setupLog.Error(err, "failed to load initial admin config")
+		os.Exit(1)
+	}
+
+	// Create auth services
+	jwtService := auth.NewJWTService(signingKey, time.Duration(adminCfg.JWTExpirationHours)*time.Hour)
+	userStore := auth.NewUserStore(mgr.GetClient(), operatorNamespace)
+	inviteService := auth.NewInviteService(mgr.GetClient(), operatorNamespace, nil, adminCfg.PanelURL)
+
+	// Load game manifests from games/ directory
+	manifestLoader, err := manifest.LoadFromDirectory("games/")
+	if err != nil {
+		setupLog.Error(err, "failed to load game manifests from games/ directory")
+		os.Exit(1)
+	}
+	setupLog.Info("loaded game manifests", "count", len(manifestLoader.List()))
+
+	// Create and register API server as a manager.Server Runnable
+	apiServer := api.NewServer(api.Config{
+		Client:            mgr.GetClient(),
+		JWTService:        jwtService,
+		UserStore:         userStore,
+		InviteService:     inviteService,
+		ManifestLoader:    manifestLoader,
+		OperatorNamespace: operatorNamespace,
+		BindAddress:       apiBindAddress,
+	})
+
+	if err := mgr.Add(&manager.Server{
+		Name:   "api-server",
+		Server: apiServer.HTTPServer(),
+	}); err != nil {
+		setupLog.Error(err, "unable to add API server to manager")
+		os.Exit(1)
+	}
+	setupLog.Info("API server registered", "bind-address", apiBindAddress)
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
