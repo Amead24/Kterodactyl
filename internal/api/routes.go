@@ -1,0 +1,150 @@
+/*
+Copyright 2026.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package api
+
+import (
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
+
+	"github.com/kterodactyl/kterodactyl/internal/auth"
+)
+
+// routes builds and returns the chi router with all middleware stacks and route groups.
+func (s *Server) routes() chi.Router {
+	r := chi.NewRouter()
+
+	// Global middleware (order matters: outermost first)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.Timeout(30 * time.Second))
+
+	// CORS at top level (Pitfall 4: must be top-level for preflight OPTIONS to work)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		ExposedHeaders:   []string{"X-Refresh-Token"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+
+	// Global rate limit: 100 requests per minute per IP
+	r.Use(httprate.LimitByIP(100, time.Minute))
+
+	// Health routes (unauthenticated)
+	r.Get("/healthz", handleHealthz)
+	r.Get("/readyz", handleReadyz)
+
+	// Public auth routes with tighter per-endpoint rate limits
+	r.With(httprate.LimitByIP(5, time.Minute)).Post("/api/v1/auth/login", s.handleLogin)
+	r.With(httprate.LimitByIP(3, time.Minute)).Post("/api/v1/auth/register", s.handleRegister)
+
+	// Authenticated routes under /api/v1
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(s.authMiddleware.Authenticate)
+
+		// Auth management
+		r.Post("/auth/refresh", s.handleRefresh)
+
+		// Game manifest endpoints
+		r.Get("/games", s.handleListGames)
+		r.Get("/games/{gameType}", s.handleGetGame)
+
+		// GameServer CRUD with create rate limit
+		r.Route("/gameservers", func(r chi.Router) {
+			r.Get("/", s.handleListGameServers)
+			r.With(httprate.LimitByIP(10, time.Minute)).Post("/", s.handleCreateGameServer)
+			r.Route("/{name}", func(r chi.Router) {
+				r.Get("/", s.handleGetGameServer)
+				r.Put("/", s.handleUpdateGameServer)
+				r.Delete("/", s.handleDeleteGameServer)
+			})
+		})
+
+		// Admin routes (require admin role)
+		r.Route("/admin", func(r chi.Router) {
+			r.Use(auth.RequireAdmin)
+			r.Post("/invites", s.handleCreateInvite)
+			r.Get("/users", s.handleListUsers)
+			r.Delete("/users/{username}", s.handleDeleteUser)
+		})
+	})
+
+	return r
+}
+
+// --- Placeholder handlers for endpoints implemented in Plans 02 and 03 ---
+// These stubs allow the router to compile and enable health endpoint verification.
+
+func (s *Server) handleLogin(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleRegister(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleRefresh(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleListGames(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleGetGame(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleListGameServers(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleCreateGameServer(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleGetGameServer(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleUpdateGameServer(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleDeleteGameServer(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleCreateInvite(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleListUsers(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
+
+func (s *Server) handleDeleteUser(w http.ResponseWriter, _ *http.Request) {
+	respondError(w, http.StatusNotImplemented, "not implemented")
+}
