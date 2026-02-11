@@ -207,10 +207,18 @@ func createAdminConfigMap(t *testing.T, ts *testServer, registrationEnabled bool
 	}
 }
 
-// defaultTestManifestLoader creates a Loader with a minecraft manifest.
+// defaultTestManifestLoader creates a Loader with a minecraft manifest using the
+// directory-per-game structure. The manifest includes a parameterSchema section
+// with constraints for EULA (const), TYPE (enum), and MAX_PLAYERS (pattern).
 func defaultTestManifestLoader(t *testing.T) *manifest.Loader {
 	t.Helper()
 	dir := t.TempDir()
+
+	// Create minecraft subdirectory (directory-per-game structure)
+	mcDir := filepath.Join(dir, "minecraft")
+	if err := os.MkdirAll(mcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	minecraft := `name: minecraft
 displayName: Minecraft Java Edition
@@ -229,8 +237,31 @@ resources:
   limits:
     memory: "2Gi"
     cpu: "1000m"
+parameterSchema:
+  type: object
+  properties:
+    EULA:
+      type: string
+      title: "EULA Agreement"
+      description: "Must be TRUE to accept the Minecraft EULA"
+      const: "TRUE"
+    TYPE:
+      type: string
+      title: "Server Type"
+      description: "Minecraft server implementation"
+      enum: ["VANILLA", "PAPER", "SPIGOT"]
+      default: "VANILLA"
+    MAX_PLAYERS:
+      type: string
+      title: "Max Players"
+      description: "Maximum number of concurrent players"
+      pattern: "^[1-9][0-9]*$"
+      default: "20"
+  required:
+    - EULA
+    - TYPE
 `
-	if err := os.WriteFile(filepath.Join(dir, "minecraft.yaml"), []byte(minecraft), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(mcDir, "manifest.yaml"), []byte(minecraft), 0644); err != nil {
 		t.Fatal(err)
 	}
 

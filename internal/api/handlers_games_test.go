@@ -72,6 +72,9 @@ func TestHandleListGames(t *testing.T) {
 		if mc.Ports[0].Protocol != "TCP" {
 			t.Errorf("data[0].ports[0].protocol = %q, want %q", mc.Ports[0].Protocol, "TCP")
 		}
+		if mc.ParameterSchema == nil {
+			t.Error("data[0].parameterSchema should not be nil")
+		}
 	})
 
 	t.Run("unauthenticated request returns 401", func(t *testing.T) {
@@ -89,7 +92,7 @@ func TestHandleGetGame(t *testing.T) {
 	ts := newTestServer(t)
 	token := ts.generateToken(t, "bob", auth.RoleUser)
 
-	t.Run("existing game type returns details", func(t *testing.T) {
+	t.Run("existing game type returns details with parameterSchema", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/games/minecraft", nil)
 		addAuthHeader(req, token)
 		rec := ts.doRequest(req)
@@ -120,6 +123,24 @@ func TestHandleGetGame(t *testing.T) {
 		}
 		if resp.Parameters["EULA"] != "TRUE" {
 			t.Errorf("parameters[EULA] = %q, want %q", resp.Parameters["EULA"], "TRUE")
+		}
+
+		// Verify parameterSchema is present with expected properties
+		if resp.ParameterSchema == nil {
+			t.Fatal("parameterSchema should not be nil")
+		}
+		props, ok := resp.ParameterSchema["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatal("parameterSchema.properties should be a map")
+		}
+		if _, ok := props["EULA"]; !ok {
+			t.Error("parameterSchema.properties should contain EULA")
+		}
+		if _, ok := props["TYPE"]; !ok {
+			t.Error("parameterSchema.properties should contain TYPE")
+		}
+		if _, ok := props["MAX_PLAYERS"]; !ok {
+			t.Error("parameterSchema.properties should contain MAX_PLAYERS")
 		}
 	})
 

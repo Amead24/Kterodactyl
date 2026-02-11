@@ -33,6 +33,7 @@ import (
 )
 
 // createTestGameServer creates a GameServer CR in the fake K8s client.
+// Parameters include both EULA and TYPE to satisfy the test manifest's JSON Schema requirements.
 func createTestGameServer(t *testing.T, k8sClient client.Client, name, namespace, owner, gameType string) {
 	t.Helper()
 	gs := &gamev1alpha1.GameServer{
@@ -49,6 +50,7 @@ func createTestGameServer(t *testing.T, k8sClient client.Client, name, namespace
 			},
 			Parameters: map[string]string{
 				"EULA": "TRUE",
+				"TYPE": "VANILLA",
 			},
 		},
 	}
@@ -276,6 +278,98 @@ func TestHandleCreateGameServer(t *testing.T) {
 	})
 }
 
+func TestHandleCreateGameServer_InvalidParameters(t *testing.T) {
+	ts := newTestServer(t)
+	token := ts.generateToken(t, "alice", auth.RoleUser)
+
+	t.Run("invalid TYPE enum value", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":     "bad-type-server",
+			"gameType": "minecraft",
+			"parameters": map[string]string{
+				"TYPE": "INVALID_TYPE",
+			},
+		}
+		b, _ := json.Marshal(body)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/", bytes.NewReader(b))
+		req.Header.Set("Content-Type", "application/json")
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rec.Code, rec.Body.String())
+		}
+
+		var resp ErrorResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode error: %v", err)
+		}
+		if resp.Error == "" {
+			t.Error("expected non-empty error message")
+		}
+	})
+
+	t.Run("invalid MAX_PLAYERS pattern", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":     "bad-players-server",
+			"gameType": "minecraft",
+			"parameters": map[string]string{
+				"MAX_PLAYERS": "not-a-number",
+			},
+		}
+		b, _ := json.Marshal(body)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/", bytes.NewReader(b))
+		req.Header.Set("Content-Type", "application/json")
+		addAuthHeader(req, token)
+		rec := ts.doRequest(req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestHandleCreateGameServer_ValidParameters(t *testing.T) {
+	ts := newTestServer(t)
+	token := ts.generateToken(t, "alice", auth.RoleUser)
+
+	body := map[string]interface{}{
+		"name":     "valid-server",
+		"gameType": "minecraft",
+		"parameters": map[string]string{
+			"EULA": "TRUE",
+			"TYPE": "PAPER",
+		},
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gameservers/", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	addAuthHeader(req, token)
+	rec := ts.doRequest(req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, rec.Code, rec.Body.String())
+	}
+
+	var resp GameServerResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Name != "valid-server" {
+		t.Errorf("expected name %q, got %q", "valid-server", resp.Name)
+	}
+	if resp.Parameters["EULA"] != "TRUE" {
+		t.Errorf("expected EULA=TRUE, got %q", resp.Parameters["EULA"])
+	}
+	if resp.Parameters["TYPE"] != "PAPER" {
+		t.Errorf("expected TYPE=PAPER, got %q", resp.Parameters["TYPE"])
+	}
+}
+
 func TestHandleGetGameServer(t *testing.T) {
 	t.Run("existing server", func(t *testing.T) {
 		ts := newTestServer(t)
@@ -372,6 +466,37 @@ func TestHandleUpdateGameServer(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusNotFound, rec.Code, rec.Body.String())
 		}
 	})
+}
+
+func TestHandleUpdateGameServer_InvalidParameters(t *testing.T) {
+	ts := newTestServer(t)
+	token := ts.generateToken(t, "alice", auth.RoleUser)
+
+	// Pre-create a server with valid parameters
+	createTestGameServer(t, ts.client, "update-test", "user-alice", "alice", "minecraft")
+
+	// Update with an invalid TYPE that violates the enum constraint
+	body := map[string]interface{}{
+		"parameters": map[string]string{"TYPE": "INVALID_TYPE"},
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/gameservers/update-test/", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	addAuthHeader(req, token)
+	rec := ts.doRequest(req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rec.Code, rec.Body.String())
+	}
+
+	var resp ErrorResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode error: %v", err)
+	}
+	if resp.Error == "" {
+		t.Error("expected non-empty error message for invalid parameter")
+	}
 }
 
 func TestHandleDeleteGameServer(t *testing.T) {
