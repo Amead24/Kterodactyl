@@ -8,15 +8,8 @@ import GamesPage from '@/pages/games';
 import ServersPage from '@/pages/servers';
 import CreateServerPage from '@/pages/create-server';
 import ServerDetailPage from '@/pages/server-detail';
-
-/** Placeholder for routes not yet implemented. */
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="flex items-center justify-center py-20">
-      <p className="text-lg text-muted-foreground">{title} -- coming soon</p>
-    </div>
-  );
-}
+import UsersPage from '@/pages/admin/users';
+import InvitesPage from '@/pages/admin/invites';
 
 function App() {
   return (
@@ -37,8 +30,8 @@ function App() {
 
             {/* Admin routes */}
             <Route path="admin" element={<AdminRoute />}>
-              <Route path="users" element={<Placeholder title="User Management" />} />
-              <Route path="invites" element={<Placeholder title="Invite Management" />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="invites" element={<InvitesPage />} />
             </Route>
           </Route>
         </Route>
