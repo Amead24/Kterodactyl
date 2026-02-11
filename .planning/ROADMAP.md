@@ -124,10 +124,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Scaffold Vite React project and add lifecycle API endpoints
-- [ ] 06-02-PLAN.md — Auth pages, app layout, and game browser
-- [ ] 06-03-PLAN.md — Server creation with RJSF dynamic forms and server dashboard
-- [ ] 06-04-PLAN.md — Go embed SPA handler, admin pages, and build pipeline
+- [x] 06-01-PLAN.md — Scaffold Vite React project and add lifecycle API endpoints
+- [x] 06-02-PLAN.md — Auth pages, app layout, and game browser
+- [x] 06-03-PLAN.md — Server creation with RJSF dynamic forms and server dashboard
+- [x] 06-04-PLAN.md — Go embed SPA handler, admin pages, and build pipeline
 
 ### Phase 7: Console & Real-time Features
 **Goal**: Users can view console output and monitor resource usage in real-time
@@ -224,7 +224,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 3. Authentication | 3/3 | ✓ Complete | 2026-02-10 |
 | 4. API Server Bridge | 4/4 | ✓ Complete | 2026-02-10 |
 | 5. Game Definition Framework | 2/2 | ✓ Complete | 2026-02-11 |
-| 6. Frontend UI | 0/TBD | Not started | - |
+| 6. Frontend UI | 4/4 | ✓ Complete | 2026-02-11 |
 | 7. Console & Real-time Features | 0/TBD | Not started | - |
 | 8. Mod Support | 0/TBD | Not started | - |
 | 9. Backup System | 0/TBD | Not started | - |
