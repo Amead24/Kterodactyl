@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 4 complete and verified — ready for Phase 5 planning
+**Current focus:** Phase 5 Game Definition Framework -- executing plans
 
 ## Current Position
 
-Phase: 4 of 12 (API Server Bridge) -- COMPLETE
-Plan: 4 of 4 in current phase -- COMPLETE
-Status: Phase 4 Complete -- Ready for Phase 5
-Last activity: 2026-02-10 — Phase 4 verified (5/5 must-haves passed)
+Phase: 5 of 12 (Game Definition Framework)
+Plan: 1 of 2 in current phase -- COMPLETE
+Status: Executing Phase 5
+Last activity: 2026-02-11 — Completed 05-01 (manifest schema + directory-per-game)
 
-Progress: [████░░░░░░] 33%
+Progress: [████▌░░░░░] 37%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: 5min
-- Total execution time: 1.34 hours
+- Total execution time: 1.41 hours
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [████░░░░░░] 33%
 | 02-networking-dns | 3/3 | 14min | 5min |
 | 03-authentication | 3/3 | 17min | 6min |
 | 04-api-server-bridge | 4/4 | 29min | 7min |
+| 05-game-definition-framework | 1/2 | 4min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (5min), 04-02 (10min), 04-03 (10min), 04-04 (4min)
+- Last 5 plans: 04-02 (10min), 04-03 (10min), 04-04 (4min), 05-01 (4min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -107,6 +108,12 @@ Recent decisions affecting current work:
 - manager.Server Runnable wraps API server's *http.Server for lifecycle management alongside controllers
 - SMTP nil at startup -- invites return link in response until SMTP is configured
 - API server bound to configurable --api-bind-address flag (default :8080)
+- Directory-per-game structure: games/<name>/ with manifest.yaml + Dockerfile (replacing flat YAML files)
+- JSON Schema (Draft 2020-12) embedded in YAML manifests via parameterSchema field for parameter validation and frontend form generation
+- Schema URL uses simple path (games/<name>/parameterSchema.json) not JSON pointer fragment -- jsonschema v6 resolves fragments as JSON pointers
+- All parameter schema properties use type: string because env vars are always strings -- constraints via enum, pattern, const, maxLength
+- Schemas compiled once during LoadFromDirectory, stored as compiledSchema on GameManifest -- no per-request compilation
+- santhosh-tekuri/jsonschema/v6 chosen over alternatives for Draft 2020-12 support and maturity
 
 ### Pending Todos
 
@@ -128,6 +135,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-10
-Stopped at: Phase 4 verified and complete — ready for Phase 5 planning
+Last session: 2026-02-11
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
