@@ -26,11 +26,12 @@ import (
 
 // GameResponse is the API response format for a game manifest.
 type GameResponse struct {
-	Name        string            `json:"name"`
-	DisplayName string            `json:"displayName"`
-	Image       string            `json:"image"`
-	Ports       []PortInfo        `json:"ports"`
-	Parameters  map[string]string `json:"parameters"`
+	Name            string                 `json:"name"`
+	DisplayName     string                 `json:"displayName"`
+	Image           string                 `json:"image"`
+	Ports           []PortInfo             `json:"ports"`
+	Parameters      map[string]string      `json:"parameters"`
+	ParameterSchema map[string]interface{} `json:"parameterSchema,omitempty"`
 }
 
 // PortInfo is the API response format for a game server port.
@@ -58,11 +59,12 @@ func gameManifestToResponse(m *manifest.GameManifest) *GameResponse {
 	}
 
 	return &GameResponse{
-		Name:        m.Name,
-		DisplayName: m.DisplayName,
-		Image:       m.Image,
-		Ports:       ports,
-		Parameters:  params,
+		Name:            m.Name,
+		DisplayName:     m.DisplayName,
+		Image:           m.Image,
+		Ports:           ports,
+		Parameters:      params,
+		ParameterSchema: m.ParameterSchema,
 	}
 }
 

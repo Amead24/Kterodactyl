@@ -127,6 +127,12 @@ func (s *Server) handleCreateGameServer(w http.ResponseWriter, r *http.Request) 
 	// Merge manifest default parameters with user-provided overrides
 	parameters := mergeMaps(m.Parameters, req.Parameters)
 
+	// Validate merged parameters against the game's JSON Schema
+	if err := m.ValidateParameters(parameters); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	gs := &gamev1alpha1.GameServer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Name,
@@ -216,6 +222,16 @@ func (s *Server) handleUpdateGameServer(w http.ResponseWriter, r *http.Request) 
 
 	// Merge existing parameters with update request
 	gs.Spec.Parameters = mergeMaps(gs.Spec.Parameters, req.Parameters)
+
+	// Validate merged parameters against the game's JSON Schema.
+	// If the manifest is not found (game definition removed after server creation),
+	// skip validation rather than blocking updates.
+	if m, ok := s.manifestLoader.Get(gs.Spec.GameType); ok {
+		if err := m.ValidateParameters(gs.Spec.Parameters); err != nil {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
 
 	if err := s.client.Update(ctx, gs); err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to update game server")
