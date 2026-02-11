@@ -17,24 +17,27 @@ limitations under the License.
 package manifest
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"gopkg.in/yaml.v3"
 
+	"github.com/santhosh-tekuri/jsonschema/v6"
+
 	gamev1alpha1 "github.com/kterodactyl/kterodactyl/api/v1alpha1"
 )
 
-// GameManifest defines a game type template loaded from a YAML file.
-// It specifies the container image, ports, default parameters, and resource requirements
-// for creating GameServer instances of this game type.
+// GameManifest defines a game type template loaded from a YAML manifest.
+// It specifies the container image, ports, default parameters, resource requirements,
+// and an optional JSON Schema for parameter validation and frontend form generation.
 type GameManifest struct {
-	// Name is the unique identifier for the game type (must match filename stem).
+	// Name is the unique identifier for the game type (must match directory name).
 	Name string `yaml:"name"`
 
 	// DisplayName is the human-readable name shown in the UI.
@@ -51,6 +54,15 @@ type GameManifest struct {
 
 	// Resources defines CPU/memory requests and limits for the game server container.
 	Resources corev1.ResourceRequirements `yaml:"-"`
+
+	// ParameterSchema is the raw JSON Schema object defining parameter
+	// types, constraints, and UI metadata. Stored as a generic map
+	// so it can be serialized to JSON and consumed by the frontend.
+	ParameterSchema map[string]interface{} `yaml:"-"`
+
+	// compiledSchema is the pre-compiled JSON Schema for efficient
+	// parameter validation. Set during LoadFromDirectory().
+	compiledSchema *jsonschema.Schema
 }
 
 // rawGameManifest is an intermediate type for YAML unmarshaling that handles
@@ -58,18 +70,19 @@ type GameManifest struct {
 // JSON Unmarshaler, not yaml.v3 Unmarshaler) and ports with explicit yaml tags
 // (since GameServerPort only has json tags).
 type rawGameManifest struct {
-	Name        string            `yaml:"name"`
-	DisplayName string            `yaml:"displayName"`
-	Image       string            `yaml:"image"`
-	Ports       []rawPort         `yaml:"ports"`
-	Parameters  map[string]string `yaml:"parameters"`
-	Resources   rawResources      `yaml:"resources"`
+	Name            string                 `yaml:"name"`
+	DisplayName     string                 `yaml:"displayName"`
+	Image           string                 `yaml:"image"`
+	Ports           []rawPort              `yaml:"ports"`
+	Parameters      map[string]string      `yaml:"parameters"`
+	Resources       rawResources           `yaml:"resources"`
+	ParameterSchema map[string]interface{} `yaml:"parameterSchema"`
 }
 
 // rawPort mirrors gamev1alpha1.GameServerPort with yaml tags for YAML parsing.
 type rawPort struct {
-	Name          string        `yaml:"name"`
-	ContainerPort int32         `yaml:"containerPort"`
+	Name          string          `yaml:"name"`
+	ContainerPort int32           `yaml:"containerPort"`
 	Protocol      corev1.Protocol `yaml:"protocol"`
 }
 
@@ -100,57 +113,58 @@ type Loader struct {
 	manifests map[string]*GameManifest
 }
 
-// LoadFromDirectory reads all .yaml and .yml files from the given directory,
-// parses them into GameManifest structs, validates required fields, and returns
-// a Loader with all manifests accessible by name.
+// LoadFromDirectory reads game manifests from subdirectories of dir.
+// Each subdirectory must contain a manifest.yaml (or manifest.yml) file.
+// Schemas are compiled once during loading for efficient validation at request time.
 //
 // Returns an error if the directory does not exist, contains no valid manifests,
 // or any manifest is missing required fields (Name, Image).
 func LoadFromDirectory(dir string) (*Loader, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read manifest directory %s: %w", dir, err)
+		return nil, fmt.Errorf("failed to read games directory %s: %w", dir, err)
 	}
 
 	manifests := make(map[string]*GameManifest)
 
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if !entry.IsDir() {
 			continue
 		}
 
-		ext := strings.ToLower(filepath.Ext(entry.Name()))
-		if ext != ".yaml" && ext != ".yml" {
-			continue
-		}
-
-		filePath := filepath.Join(dir, entry.Name())
-		data, err := os.ReadFile(filePath)
+		// Look for manifest.yaml or manifest.yml inside the subdirectory
+		manifestPath := filepath.Join(dir, entry.Name(), "manifest.yaml")
+		data, err := os.ReadFile(manifestPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read manifest file %s: %w", filePath, err)
+			// Try manifest.yml as alternative
+			manifestPath = filepath.Join(dir, entry.Name(), "manifest.yml")
+			data, err = os.ReadFile(manifestPath)
+			if err != nil {
+				continue // skip directories without manifests
+			}
 		}
 
 		var raw rawGameManifest
 		if err := yaml.Unmarshal(data, &raw); err != nil {
-			return nil, fmt.Errorf("failed to parse manifest file %s: %w", filePath, err)
+			return nil, fmt.Errorf("failed to parse manifest file %s: %w", manifestPath, err)
 		}
 
 		// Validate required fields
 		if raw.Name == "" {
-			return nil, fmt.Errorf("manifest file %s: name field is required", filePath)
+			return nil, fmt.Errorf("manifest file %s: name field is required", manifestPath)
 		}
 		if raw.Image == "" {
-			return nil, fmt.Errorf("manifest file %s: image field is required", filePath)
+			return nil, fmt.Errorf("manifest file %s: image field is required", manifestPath)
 		}
 
 		// Parse resource quantities from strings
 		requests, err := parseResourceList(raw.Resources.Requests)
 		if err != nil {
-			return nil, fmt.Errorf("manifest file %s: invalid requests: %w", filePath, err)
+			return nil, fmt.Errorf("manifest file %s: invalid requests: %w", manifestPath, err)
 		}
 		limits, err := parseResourceList(raw.Resources.Limits)
 		if err != nil {
-			return nil, fmt.Errorf("manifest file %s: invalid limits: %w", filePath, err)
+			return nil, fmt.Errorf("manifest file %s: invalid limits: %w", manifestPath, err)
 		}
 
 		// Convert raw ports to GameServerPort types
@@ -160,6 +174,29 @@ func LoadFromDirectory(dir string) (*Loader, error) {
 				Name:          rp.Name,
 				ContainerPort: rp.ContainerPort,
 				Protocol:      rp.Protocol,
+			}
+		}
+
+		// Compile parameter schema if present
+		var compiledSchema *jsonschema.Schema
+		if raw.ParameterSchema != nil {
+			schemaJSON, err := json.Marshal(raw.ParameterSchema)
+			if err != nil {
+				return nil, fmt.Errorf("manifest %s: failed to marshal parameter schema: %w", manifestPath, err)
+			}
+
+			c := jsonschema.NewCompiler()
+			schemaURL := fmt.Sprintf("games/%s/manifest.yaml#/parameterSchema", raw.Name)
+			schemaDoc, err := jsonschema.UnmarshalJSON(bytes.NewReader(schemaJSON))
+			if err != nil {
+				return nil, fmt.Errorf("manifest %s: failed to unmarshal parameter schema JSON: %w", manifestPath, err)
+			}
+			if err := c.AddResource(schemaURL, schemaDoc); err != nil {
+				return nil, fmt.Errorf("manifest %s: invalid parameter schema: %w", manifestPath, err)
+			}
+			compiledSchema, err = c.Compile(schemaURL)
+			if err != nil {
+				return nil, fmt.Errorf("manifest %s: failed to compile parameter schema: %w", manifestPath, err)
 			}
 		}
 
@@ -173,6 +210,8 @@ func LoadFromDirectory(dir string) (*Loader, error) {
 				Requests: requests,
 				Limits:   limits,
 			},
+			ParameterSchema: raw.ParameterSchema,
+			compiledSchema:  compiledSchema,
 		}
 
 		manifests[m.Name] = m

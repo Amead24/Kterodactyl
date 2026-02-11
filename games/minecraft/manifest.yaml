@@ -1,0 +1,94 @@
+name: minecraft
+displayName: "Minecraft Java Edition"
+image: itzg/minecraft-server:latest
+ports:
+  - name: game
+    containerPort: 25565
+    protocol: TCP
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+# Default parameter values used when creating a server
+parameters:
+  EULA: "TRUE"
+  TYPE: "VANILLA"
+  DIFFICULTY: "normal"
+  MODE: "survival"
+  MAX_PLAYERS: "20"
+  MEMORY: "2G"
+  MOTD: "A Kterodactyl Minecraft Server"
+  PVP: "true"
+  SEED: ""
+  ONLINE_MODE: "true"
+# JSON Schema (Draft 2020-12) defining parameter types, constraints, and UI metadata.
+# The frontend consumes this schema to auto-generate configuration forms.
+# All parameters use type: string because they become container environment variables.
+parameterSchema:
+  type: object
+  properties:
+    EULA:
+      type: string
+      title: "Accept EULA"
+      description: "Must be TRUE to accept the Minecraft EULA"
+      const: "TRUE"
+      default: "TRUE"
+    TYPE:
+      type: string
+      title: "Server Type"
+      description: "Minecraft server implementation to use"
+      enum: ["VANILLA", "PAPER", "SPIGOT", "FORGE", "FABRIC", "QUILT"]
+      default: "VANILLA"
+    DIFFICULTY:
+      type: string
+      title: "Difficulty"
+      description: "Game difficulty level"
+      enum: ["peaceful", "easy", "normal", "hard"]
+      default: "normal"
+    MODE:
+      type: string
+      title: "Game Mode"
+      description: "Default game mode for new players"
+      enum: ["survival", "creative", "adventure", "spectator"]
+      default: "survival"
+    MAX_PLAYERS:
+      type: string
+      title: "Max Players"
+      description: "Maximum number of concurrent players (must be a positive integer)"
+      pattern: "^[1-9][0-9]*$"
+      default: "20"
+    MEMORY:
+      type: string
+      title: "JVM Memory"
+      description: "Java heap memory allocation for the server"
+      enum: ["1G", "2G", "4G", "8G"]
+      default: "2G"
+    MOTD:
+      type: string
+      title: "Server Message"
+      description: "Message displayed in the server list (max 59 characters)"
+      maxLength: 59
+      default: "A Kterodactyl Minecraft Server"
+    PVP:
+      type: string
+      title: "PvP Enabled"
+      description: "Allow player-vs-player combat"
+      enum: ["true", "false"]
+      default: "true"
+    SEED:
+      type: string
+      title: "World Seed"
+      description: "World generation seed (leave empty for random)"
+      default: ""
+    ONLINE_MODE:
+      type: string
+      title: "Online Mode"
+      description: "Require Mojang authentication for connecting players"
+      enum: ["true", "false"]
+      default: "true"
+  required:
+    - EULA
+    - TYPE
