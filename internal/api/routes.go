@@ -17,7 +17,6 @@ limitations under the License.
 package api
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -94,37 +93,3 @@ func (s *Server) routes() chi.Router {
 	return r
 }
 
-// --- Placeholder handlers for endpoints implemented in later plans ---
-// These stubs allow the router to compile and enable health endpoint verification.
-
-func (s *Server) handleListGameServers(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleCreateGameServer(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleGetGameServer(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleUpdateGameServer(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleDeleteGameServer(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleCreateInvite(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleListUsers(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
-
-func (s *Server) handleDeleteUser(w http.ResponseWriter, _ *http.Request) {
-	respondError(w, http.StatusNotImplemented, "not implemented")
-}
