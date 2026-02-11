@@ -5,23 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 4 in progress — All handler implementations complete, plan 04-04 remaining
+**Current focus:** Phase 4 complete -- API server wired into controller-runtime manager, all 16 endpoints operational
 
 ## Current Position
 
 Phase: 4 of 12 (API Server Bridge)
-Plan: 3 of 4 in current phase -- COMPLETE
-Status: Executing Phase 4
-Last activity: 2026-02-11 — Completed 04-03 (game manifest + admin handlers)
+Plan: 4 of 4 in current phase -- COMPLETE
+Status: Phase 4 Complete
+Last activity: 2026-02-11 -- Completed 04-04 (API server manager integration)
 
 Progress: [████░░░░░░] 33%
+Phase 4 Complete: All 4 plans executed successfully
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: 5min
-- Total execution time: 1.27 hours
+- Total execution time: 1.34 hours
 
 **By Phase:**
 
@@ -30,10 +31,10 @@ Progress: [████░░░░░░] 33%
 | 01-operator-foundation | 4/4 | 20min | 5min |
 | 02-networking-dns | 3/3 | 14min | 5min |
 | 03-authentication | 3/3 | 17min | 6min |
-| 04-api-server-bridge | 3/4 | 25min | 8min |
+| 04-api-server-bridge | 4/4 | 29min | 7min |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (4min), 04-01 (5min), 04-02 (10min), 04-03 (10min)
+- Last 5 plans: 04-01 (5min), 04-02 (10min), 04-03 (10min), 04-04 (4min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -103,6 +104,10 @@ Recent decisions affecting current work:
 - Admin invite handler loads AdminConfig per-request for InviteExpirationHours (defaults to 72h without ConfigMap)
 - GameResponse converts corev1.Protocol to plain string for JSON cleanliness
 - Shared test helpers consolidated into helpers_test.go with testServer wrapper pattern
+- Direct K8s client (client.New) for bootstrap operations before manager starts; cached client (mgr.GetClient()) for runtime
+- manager.Server Runnable wraps API server's *http.Server for lifecycle management alongside controllers
+- SMTP nil at startup -- invites return link in response until SMTP is configured
+- API server bound to configurable --api-bind-address flag (default :8080)
 
 ### Pending Todos
 
@@ -125,5 +130,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 04-03-PLAN.md (game manifest + admin handlers)
+Stopped at: Completed 04-04-PLAN.md (API server manager integration) -- Phase 4 complete
 Resume file: None
