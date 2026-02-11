@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 3 complete and verified — ready for Phase 4 planning
+**Current focus:** Phase 4 in progress — API server scaffold complete, handler implementation next
 
 ## Current Position
 
-Phase: 3 of 12 (Authentication) -- COMPLETE
-Plan: 3 of 3 in current phase -- COMPLETE
-Status: Phase 3 Complete -- Ready for Phase 4
-Last activity: 2026-02-10 — Completed 03-03 (auth middleware, invite service, unit tests)
+Phase: 4 of 12 (API Server Bridge)
+Plan: 1 of 4 in current phase -- COMPLETE
+Status: Executing Phase 4
+Last activity: 2026-02-11 — Completed 04-01 (manifest loader, API server scaffold)
 
-Progress: [██░░░░░░░░] 24%
+Progress: [███░░░░░░░] 27%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 5min
-- Total execution time: 0.85 hours
+- Total execution time: 0.93 hours
 
 **By Phase:**
 
@@ -30,9 +30,10 @@ Progress: [██░░░░░░░░] 24%
 | 01-operator-foundation | 4/4 | 20min | 5min |
 | 02-networking-dns | 3/3 | 14min | 5min |
 | 03-authentication | 3/3 | 17min | 6min |
+| 04-api-server-bridge | 1/4 | 5min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (8min), 03-01 (5min), 03-02 (8min), 03-03 (4min)
+- Last 5 plans: 03-01 (5min), 03-02 (8min), 03-03 (4min), 04-01 (5min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -89,6 +90,10 @@ Recent decisions affecting current work:
 - SMTP failure on invite creation logs but does not fail invite -- link still returned to admin
 - go-mail with TLSOpportunistic and SMTPAuthAutoDiscover for maximum SMTP server compatibility
 - Standard Go testing for auth package (not Ginkgo) -- standalone library tests without K8s envtest
+- Raw intermediate types (rawGameManifest, rawPort, rawResources) for YAML deserialization of K8s types that only have JSON tags
+- Chi v5 router with httprate rate limiting and CORS at top-level for proper preflight handling
+- Per-request AdminConfig loading via controller.LoadAdminConfig to avoid ConfigMap staleness
+- 13 placeholder handler stubs (501) allow router to compile while Plans 02/03 implement handlers
 
 ### Pending Todos
 
@@ -106,10 +111,10 @@ Recent decisions affecting current work:
 - ExternalDNS + cert-manager integration may need research during planning for split-horizon DNS patterns
 
 **Phase 4:**
-- Authentication mechanism decision needed (JWT only vs OIDC integration scope for v1)
+- ~~Authentication mechanism decision needed (JWT only vs OIDC integration scope for v1)~~ RESOLVED in 04-01: JWT-only for v1 (HS256 via Phase 3 JWTService)
 
 ## Session Continuity
 
-Last session: 2026-02-10
-Stopped at: Phase 3 verified and complete — ready for Phase 4 planning
+Last session: 2026-02-11
+Stopped at: Completed 04-01-PLAN.md (API server foundation)
 Resume file: None
