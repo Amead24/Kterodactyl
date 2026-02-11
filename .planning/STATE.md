@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 5 complete and verified — ready for Phase 6 planning
+**Current focus:** Phase 6 frontend UI -- Plan 01 complete, continuing with Plan 02
 
 ## Current Position
 
-Phase: 5 of 12 (Game Definition Framework) -- COMPLETE
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 5 Complete -- Ready for Phase 6
-Last activity: 2026-02-11 — Phase 5 verified (13/13 must-haves passed)
+Phase: 6 of 12 (Frontend UI)
+Plan: 1 of 4 in current phase -- COMPLETE
+Status: Executing Phase 6
+Last activity: 2026-02-11 — Completed 06-01-PLAN.md (frontend scaffold + lifecycle API)
 
-Progress: [████▊░░░░░] 40%
+Progress: [█████░░░░░] 42%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: 5min
-- Total execution time: 1.48 hours
+- Total execution time: 1.61 hours
 
 **By Phase:**
 
@@ -32,10 +32,11 @@ Progress: [████▊░░░░░] 40%
 | 03-authentication | 3/3 | 17min | 6min |
 | 04-api-server-bridge | 4/4 | 29min | 7min |
 | 05-game-definition-framework | 2/2 | 8min | 4min |
+| 06-frontend-ui | 1/4 | 8min | 8min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (10min), 04-04 (4min), 05-01 (4min), 05-02 (4min)
-- Trend: Stable
+- Last 5 plans: 04-04 (4min), 05-01 (4min), 05-02 (4min), 06-01 (8min)
+- Trend: Stable (06-01 slightly longer due to npm install + shadcn init)
 
 *Updated after each plan completion*
 
@@ -117,6 +118,11 @@ Recent decisions affecting current work:
 - Update path skips schema validation when manifest not found -- defensive design for removed game definitions
 - ParameterSchema passed through as raw map[string]interface{} to API response -- no transformation, direct react-jsonschema-form consumption
 - Operator Dockerfile copies games/ directory into final image at /games for manifest loader
+- Tailwind CSS v4 with @tailwindcss/vite plugin for frontend (shadcn auto-detected)
+- ValidTransitions expanded: Shutdown->Creating and Error->Creating for lifecycle API restart support
+- JWT stored in Zustand memory only (no localStorage) -- token lost on page refresh per security best practices
+- Status().Update() pattern for lifecycle handlers -- separates spec from status updates in K8s
+- WithStatusSubresource required for fake client when testing status sub-resource updates
 
 ### Pending Todos
 
@@ -139,5 +145,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 05-02-PLAN.md (Phase 5 complete)
+Stopped at: Completed 06-01-PLAN.md (frontend scaffold + lifecycle API)
 Resume file: None
