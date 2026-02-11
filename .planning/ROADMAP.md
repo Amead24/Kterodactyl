@@ -87,10 +87,13 @@ Plans:
   3. API server loads game manifests from games/ directory
   4. API server never exposes Kubernetes API directly to users
   5. Rate limiting prevents resource exhaustion attacks
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 04-01-PLAN.md — Game manifest loader and API server scaffold with chi router
+- [ ] 04-02-PLAN.md — Auth and GameServer CRUD handlers with tests
+- [ ] 04-03-PLAN.md — Game manifest and admin handlers with tests
+- [ ] 04-04-PLAN.md — Manager integration and full build verification
 
 ### Phase 5: Game Definition Framework
 **Goal**: Games are defined declaratively with Dockerfile and manifest, enabling community contributions
@@ -215,7 +218,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Operator Foundation | 4/4 | ✓ Complete | 2026-02-10 |
 | 2. Networking & DNS | 3/3 | ✓ Complete | 2026-02-10 |
 | 3. Authentication | 3/3 | ✓ Complete | 2026-02-10 |
-| 4. API Server Bridge | 0/TBD | Not started | - |
+| 4. API Server Bridge | 0/4 | Not started | - |
 | 5. Game Definition Framework | 0/TBD | Not started | - |
 | 6. Frontend UI | 0/TBD | Not started | - |
 | 7. Console & Real-time Features | 0/TBD | Not started | - |
