@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 4 in progress — API server scaffold complete, handler implementation next
+**Current focus:** Phase 4 in progress — Auth and GameServer handlers complete, admin handlers ahead of schedule
 
 ## Current Position
 
 Phase: 4 of 12 (API Server Bridge)
-Plan: 1 of 4 in current phase -- COMPLETE
+Plan: 2 of 4 in current phase -- COMPLETE
 Status: Executing Phase 4
-Last activity: 2026-02-11 — Completed 04-01 (manifest loader, API server scaffold)
+Last activity: 2026-02-11 — Completed 04-02 (auth + GameServer CRUD handlers)
 
-Progress: [███░░░░░░░] 27%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 5min
-- Total execution time: 0.93 hours
+- Total execution time: 1.10 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [███░░░░░░░] 27%
 | 01-operator-foundation | 4/4 | 20min | 5min |
 | 02-networking-dns | 3/3 | 14min | 5min |
 | 03-authentication | 3/3 | 17min | 6min |
-| 04-api-server-bridge | 1/4 | 5min | 5min |
+| 04-api-server-bridge | 2/4 | 15min | 8min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (5min), 03-02 (8min), 03-03 (4min), 04-01 (5min)
+- Last 5 plans: 03-02 (8min), 03-03 (4min), 04-01 (5min), 04-02 (10min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -94,6 +94,11 @@ Recent decisions affecting current work:
 - Chi v5 router with httprate rate limiting and CORS at top-level for proper preflight handling
 - Per-request AdminConfig loading via controller.LoadAdminConfig to avoid ConfigMap staleness
 - 13 placeholder handler stubs (501) allow router to compile while Plans 02/03 implement handlers
+- Invite email comes from invite Secret, not request body -- invite is for a specific email address
+- GameServerResponse wraps K8s CRD fields into clean API types -- raw K8s objects never exposed to API consumers
+- Only spec.Parameters updatable after creation -- GameType, Image, Ports, Resources immutable from manifest
+- Admin self-deletion prevented to avoid orphaned admin-less clusters
+- All 16 API endpoints now have real handler implementations (handlers_auth, handlers_gameserver, handlers_games, handlers_admin)
 
 ### Pending Todos
 
@@ -116,5 +121,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 04-01-PLAN.md (API server foundation)
+Stopped at: Completed 04-02-PLAN.md (auth + GameServer CRUD handlers)
 Resume file: None
