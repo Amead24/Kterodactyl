@@ -36,6 +36,7 @@ rules:
   - ""
   resources:
   - pods
+  - secrets
   - services
   verbs:
   - create
@@ -45,6 +46,18 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
 - apiGroups:
   - game.kterodactyl.io
   resources:

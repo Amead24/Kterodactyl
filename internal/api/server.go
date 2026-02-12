@@ -21,6 +21,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kterodactyl/kterodactyl/internal/auth"
@@ -31,6 +34,15 @@ import (
 type Config struct {
 	// Client is the controller-runtime Kubernetes client for CRD CRUD operations.
 	Client client.Client
+
+	// Clientset is the kubernetes.Clientset for pod logs/exec operations.
+	Clientset *kubernetes.Clientset
+
+	// RestConfig is the Kubernetes REST config for SPDY exec connections.
+	RestConfig *rest.Config
+
+	// MetricsClient is the typed client for the Kubernetes Metrics API.
+	MetricsClient *metricsv.Clientset
 
 	// JWTService handles token generation and validation.
 	JWTService *auth.JWTService
@@ -55,6 +67,9 @@ type Config struct {
 // It uses a chi router with middleware stacks and scoped route groups.
 type Server struct {
 	client            client.Client
+	clientset         *kubernetes.Clientset
+	restConfig        *rest.Config
+	metricsClient     *metricsv.Clientset
 	jwtService        *auth.JWTService
 	userStore         auth.UserService
 	inviteService     *auth.InviteService
@@ -70,6 +85,9 @@ type Server struct {
 func NewServer(cfg Config) *Server {
 	s := &Server{
 		client:            cfg.Client,
+		clientset:         cfg.Clientset,
+		restConfig:        cfg.RestConfig,
+		metricsClient:     cfg.MetricsClient,
 		jwtService:        cfg.JWTService,
 		userStore:         cfg.UserStore,
 		inviteService:     cfg.InviteService,

@@ -29,7 +29,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -165,7 +167,9 @@ func main() {
 		metricsServerOptions.KeyName = metricsCertKey
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
@@ -219,9 +223,23 @@ func main() {
 
 	// Bootstrap: create a direct K8s client for pre-start operations.
 	// The manager's cached client cannot be used before the manager starts.
-	directClient, err := client.New(ctrl.GetConfigOrDie(), client.Options{Scheme: scheme})
+	directClient, err := client.New(restConfig, client.Options{Scheme: scheme})
 	if err != nil {
 		setupLog.Error(err, "failed to create direct client for bootstrap")
+		os.Exit(1)
+	}
+
+	// Create kubernetes.Clientset for pod logs/exec operations (WebSocket console)
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		setupLog.Error(err, "failed to create kubernetes clientset")
+		os.Exit(1)
+	}
+
+	// Create metrics clientset for pod CPU/memory metrics
+	metricsClient, err := metricsv.NewForConfig(restConfig)
+	if err != nil {
+		setupLog.Error(err, "failed to create metrics clientset")
 		os.Exit(1)
 	}
 
@@ -255,6 +273,9 @@ func main() {
 	// Create and register API server as a manager.Server Runnable
 	apiServer := api.NewServer(api.Config{
 		Client:            mgr.GetClient(),
+		Clientset:         clientset,
+		RestConfig:        restConfig,
+		MetricsClient:     metricsClient,
 		JWTService:        jwtService,
 		UserStore:         userStore,
 		InviteService:     inviteService,
