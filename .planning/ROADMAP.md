@@ -151,10 +151,12 @@ Plans:
   1. User can upload mod files to a game server via the UI
   2. Mods persist on a separate PersistentVolume mounted to the game server container
   3. Server automatically restarts after mod upload completes
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 08-01-PLAN.md — Manifest modPath field, controller PVC creation, volume mounting, AdminConfig mod storage
+- [ ] 08-02-PLAN.md — API mod handlers (upload/list/delete via tar-over-exec) and route registration
+- [ ] 08-03-PLAN.md — Frontend mod UI with drag-and-drop upload, mod list, and Mods tab
 
 ### Phase 9: Backup System
 **Goal**: Users can create backups and admins can restore from them using S3-compatible storage
@@ -227,7 +229,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Game Definition Framework | 2/2 | ✓ Complete | 2026-02-11 |
 | 6. Frontend UI | 4/4 | ✓ Complete | 2026-02-11 |
 | 7. Console & Real-time Features | 2/2 | ✓ Complete | 2026-02-12 |
-| 8. Mod Support | 0/TBD | Not started | - |
+| 8. Mod Support | 0/3 | Not started | - |
 | 9. Backup System | 0/TBD | Not started | - |
 | 10. Observability | 0/TBD | Not started | - |
 | 11. Helm Packaging | 0/TBD | Not started | - |
