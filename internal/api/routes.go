@@ -28,15 +28,18 @@ import (
 )
 
 // routes builds and returns the chi router with all middleware stacks and route groups.
+//
+// CRITICAL: The 30-second timeout middleware is applied ONLY to REST API routes, not globally.
+// WebSocket routes (console) are long-lived connections that must not be killed by the timeout.
 func (s *Server) routes() chi.Router {
 	r := chi.NewRouter()
 
 	// Global middleware (order matters: outermost first)
+	// NOTE: middleware.Timeout is NOT applied globally -- it's on REST routes only.
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(middleware.Timeout(30 * time.Second))
 
 	// CORS at top level (Pitfall 4: must be top-level for preflight OPTIONS to work)
 	r.Use(cors.Handler(cors.Options{
@@ -51,7 +54,7 @@ func (s *Server) routes() chi.Router {
 	// Global rate limit: 100 requests per minute per IP
 	r.Use(httprate.LimitByIP(100, time.Minute))
 
-	// Health routes (unauthenticated)
+	// Health routes (unauthenticated, no timeout needed)
 	r.Get("/healthz", handleHealthz)
 	r.Get("/readyz", handleReadyz)
 
@@ -59,8 +62,14 @@ func (s *Server) routes() chi.Router {
 	r.With(httprate.LimitByIP(5, time.Minute)).Post("/api/v1/auth/login", s.handleLogin)
 	r.With(httprate.LimitByIP(3, time.Minute)).Post("/api/v1/auth/register", s.handleRegister)
 
-	// Authenticated routes under /api/v1
+	// WebSocket routes (NO timeout -- long-lived connections)
+	// Auth is handled inside the handler via JWT query parameter because WebSocket
+	// upgrade requests cannot carry Authorization headers.
+	r.Get("/api/v1/gameservers/{name}/console", s.handleConsole)
+
+	// REST API routes WITH timeout and authentication
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(middleware.Timeout(30 * time.Second))
 		r.Use(s.authMiddleware.Authenticate)
 
 		// Auth management
@@ -81,6 +90,7 @@ func (s *Server) routes() chi.Router {
 				r.Post("/start", s.handleStartGameServer)
 				r.Post("/stop", s.handleStopGameServer)
 				r.Post("/restart", s.handleRestartGameServer)
+				r.Get("/metrics", s.handleGetMetrics)
 			})
 		})
 
@@ -99,4 +109,3 @@ func (s *Server) routes() chi.Router {
 
 	return r
 }
-
