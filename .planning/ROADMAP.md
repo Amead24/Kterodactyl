@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: API Server Bridge** - Go REST API gateway to Kubernetes
 - [x] **Phase 5: Game Definition Framework** - Declarative game manifests and Minecraft reference
 - [x] **Phase 6: Frontend UI** - React/Next.js admin interface with dynamic forms
-- [ ] **Phase 7: Console & Real-time Features** - WebSocket console and resource monitoring
+- [x] **Phase 7: Console & Real-time Features** - WebSocket console and resource monitoring
 - [ ] **Phase 8: Mod Support** - User mod uploads with persistent storage
 - [ ] **Phase 9: Backup System** - S3-compatible backups and restore functionality
 - [ ] **Phase 10: Observability** - Prometheus metrics for operator and servers
@@ -140,8 +140,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — WebSocket console proxy, metrics REST endpoint, and K8s client infrastructure
-- [ ] 07-02-PLAN.md — xterm.js terminal UI, metrics display, and server detail page tabs
+- [x] 07-01-PLAN.md — WebSocket console proxy, metrics REST endpoint, and K8s client infrastructure
+- [x] 07-02-PLAN.md — xterm.js terminal UI, metrics display, and server detail page tabs
 
 ### Phase 8: Mod Support
 **Goal**: Users can upload and apply mods to their game servers
@@ -226,7 +226,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. API Server Bridge | 4/4 | ✓ Complete | 2026-02-10 |
 | 5. Game Definition Framework | 2/2 | ✓ Complete | 2026-02-11 |
 | 6. Frontend UI | 4/4 | ✓ Complete | 2026-02-11 |
-| 7. Console & Real-time Features | 0/2 | Not started | - |
+| 7. Console & Real-time Features | 2/2 | ✓ Complete | 2026-02-12 |
 | 8. Mod Support | 0/TBD | Not started | - |
 | 9. Backup System | 0/TBD | Not started | - |
 | 10. Observability | 0/TBD | Not started | - |
