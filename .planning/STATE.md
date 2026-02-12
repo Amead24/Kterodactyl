@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 7 in progress — console and real-time features backend
+**Current focus:** Phase 7 complete — console and real-time features shipped
 
 ## Current Position
 
-Phase: 7 of 12 (Console & Real-time)
-Plan: 1 of 2 in current phase -- COMPLETE
-Status: Executing Phase 7
-Last activity: 2026-02-12 — Completed 07-01 (WebSocket console + metrics backend)
+Phase: 7 of 12 (Console & Real-time) -- COMPLETE
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: Phase 7 Complete
+Last activity: 2026-02-12 — Completed 07-02 (Console & metrics frontend)
 
-Progress: [██████░░░░] 54%
+Progress: [██████░░░░] 58%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: 6min
-- Total execution time: 1.97 hours
+- Total execution time: 2.04 hours
 
 **By Phase:**
 
@@ -33,10 +33,10 @@ Progress: [██████░░░░] 54%
 | 04-api-server-bridge | 4/4 | 29min | 7min |
 | 05-game-definition-framework | 2/2 | 8min | 4min |
 | 06-frontend-ui | 4/4 | 22min | 6min |
-| 07-console-realtime | 1/2 | 7min | 7min |
+| 07-console-realtime | 2/2 | 11min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 06-01 (8min), 06-02 (4min), 06-03 (5min), 06-04 (5min), 07-01 (7min)
+- Last 5 plans: 06-02 (4min), 06-03 (5min), 06-04 (5min), 07-01 (7min), 07-02 (4min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -140,6 +140,9 @@ Recent decisions affecting current work:
 - Write channel pattern (chan []byte, 256 buffer) for concurrency-safe WebSocket writes
 - JWT query param auth for WebSocket (browser WebSocket API cannot set Authorization headers during upgrade)
 - Metrics API errors return 503 Service Unavailable for graceful degradation when metrics-server unavailable
+- Native WebSocket API used in React hook instead of react-use-websocket to avoid React 19 peer dependency conflict
+- HTML input field for console command entry instead of xterm onData for cleaner separated UX
+- Metrics unavailability shown as muted placeholder text (not error toast) since metrics-server may not be installed
 
 ### Pending Todos
 
@@ -162,5 +165,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed 07-01-PLAN.md (WebSocket console + metrics backend)
+Stopped at: Completed 07-02-PLAN.md (Console & metrics frontend -- Phase 7 complete)
 Resume file: None
