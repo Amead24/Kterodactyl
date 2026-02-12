@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 6 complete and verified — ready for Phase 7 planning
+**Current focus:** Phase 7 in progress — console and real-time features backend
 
 ## Current Position
 
-Phase: 6 of 12 (Frontend UI) -- COMPLETE
-Plan: 4 of 4 in current phase -- COMPLETE
-Status: Phase 6 Complete -- Ready for Phase 7
-Last activity: 2026-02-11 — Phase 6 verified (5/5 must-haves passed)
+Phase: 7 of 12 (Console & Real-time)
+Plan: 1 of 2 in current phase -- COMPLETE
+Status: Executing Phase 7
+Last activity: 2026-02-12 — Completed 07-01 (WebSocket console + metrics backend)
 
-Progress: [██████░░░░] 50%
+Progress: [██████░░░░] 54%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
-- Average duration: 5min
-- Total execution time: 1.85 hours
+- Total plans completed: 21
+- Average duration: 6min
+- Total execution time: 1.97 hours
 
 **By Phase:**
 
@@ -33,9 +33,10 @@ Progress: [██████░░░░] 50%
 | 04-api-server-bridge | 4/4 | 29min | 7min |
 | 05-game-definition-framework | 2/2 | 8min | 4min |
 | 06-frontend-ui | 4/4 | 22min | 6min |
+| 07-console-realtime | 1/2 | 7min | 7min |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (4min), 06-01 (8min), 06-02 (4min), 06-03 (5min), 06-04 (5min)
+- Last 5 plans: 06-01 (8min), 06-02 (4min), 06-03 (5min), 06-04 (5min), 07-01 (7min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -134,6 +135,11 @@ Recent decisions affecting current work:
 - Placeholder index.html force-tracked via git add -f -- go:embed works on fresh clones without frontend build
 - Multi-stage Dockerfile: node:22-alpine frontend stage -> golang builder with COPY --from=frontend -> distroless production
 - AlertDialog for delete confirmation in admin user management -- consistent with shadcn component library
+- gorilla/websocket v1.5.4-pre used (k8s.io/client-go@v0.35 transitively requires this version over v1.5.3)
+- WebSocket console route outside timeout middleware group to prevent 30s connection kills
+- Write channel pattern (chan []byte, 256 buffer) for concurrency-safe WebSocket writes
+- JWT query param auth for WebSocket (browser WebSocket API cannot set Authorization headers during upgrade)
+- Metrics API errors return 503 Service Unavailable for graceful degradation when metrics-server unavailable
 
 ### Pending Todos
 
@@ -155,6 +161,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-11
-Stopped at: Phase 6 verified and complete
+Last session: 2026-02-12
+Stopped at: Completed 07-01-PLAN.md (WebSocket console + metrics backend)
 Resume file: None
