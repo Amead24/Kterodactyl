@@ -4,6 +4,7 @@ import type {
   CreateGameServerRequest,
   UpdateGameServerRequest,
   ListResponse,
+  MetricsResponse,
 } from '@/types/api';
 
 /** GET /gameservers -- List all game servers for the current user. */
@@ -63,4 +64,9 @@ export function restartServer(name: string): Promise<GameServerResponse> {
   return apiFetch<GameServerResponse>(`/gameservers/${name}/restart`, {
     method: 'POST',
   });
+}
+
+/** GET /gameservers/{name}/metrics -- Get resource usage for a game server. */
+export function getServerMetrics(name: string): Promise<MetricsResponse> {
+  return apiFetch<MetricsResponse>(`/gameservers/${name}/metrics`);
 }

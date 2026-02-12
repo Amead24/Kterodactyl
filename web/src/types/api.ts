@@ -104,3 +104,11 @@ export interface InviteResponse {
   email: string;
   expiresAt: string;
 }
+
+/** Matches internal/api/handlers_metrics.go MetricsResponse */
+export interface MetricsResponse {
+  cpu: number;          // millicores
+  memoryMiB: number;    // MiB
+  cpuLimit: number;     // millicores from spec
+  memoryLimitMiB: number; // MiB from spec
+}
