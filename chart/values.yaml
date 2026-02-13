@@ -1,0 +1,134 @@
+# values.yaml - Kterodactyl Helm Chart
+
+# -- Number of operator replicas (should be 1 with leader election)
+replicaCount: 1
+
+image:
+  # -- Container image repository
+  repository: ghcr.io/kterodactyl/kterodactyl
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag (default is the chart appVersion)
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Annotations for the ServiceAccount
+  annotations: {}
+  # -- ServiceAccount name override
+  name: ""
+
+# -- Manager (operator + API server) configuration
+manager:
+  # -- Extra command-line arguments for the manager binary
+  extraArgs: []
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  # -- Pod-level security context
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+
+# -- Node scheduling constraints
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# -- API server Service configuration
+apiService:
+  # -- Service type (ClusterIP for internal, LoadBalancer for direct access)
+  type: ClusterIP
+  # -- API server port
+  port: 8080
+
+# -- Metrics configuration
+metrics:
+  # -- Enable metrics endpoint
+  enabled: true
+  service:
+    # -- Metrics port
+    port: 8443
+
+# -- Prometheus ServiceMonitor
+serviceMonitor:
+  # -- Create a ServiceMonitor resource
+  enabled: false
+  # -- Additional labels for ServiceMonitor
+  labels: {}
+  # -- Scrape interval
+  interval: ""
+  # -- Scrape timeout
+  scrapeTimeout: ""
+
+# -- Network policies
+networkPolicy:
+  # -- Create NetworkPolicy for metrics traffic
+  enabled: false
+
+# -- AdminConfig values (populate the kterodactyl-admin-config ConfigMap)
+adminConfig:
+  limits:
+    maxServersGlobal: "100"
+    maxServersPerUser: "5"
+  quota:
+    cpuRequests: "4"
+    cpuLimits: "8"
+    memoryRequests: "8Gi"
+    memoryLimits: "16Gi"
+    pods: "5"
+    pvcs: "5"
+    storage: "50Gi"
+  containerDefaults:
+    cpu: "2"
+    memory: "4Gi"
+    requestCPU: "500m"
+    requestMemory: "1Gi"
+    maxCPU: "4"
+    maxMemory: "8Gi"
+    minCPU: "100m"
+    minMemory: "128Mi"
+  networking:
+    baseDomain: ""
+    gateway:
+      name: "kterodactyl-gateway"
+      namespace: ""
+      controllerNamespace: "envoy-gateway-system"
+  auth:
+    jwtExpirationHours: "24"
+    inviteExpirationHours: "72"
+    registrationEnabled: "true"
+    panelURL: ""
+  smtp:
+    host: ""
+    port: "587"
+    username: ""
+    from: ""
+  storage:
+    modStorageClass: ""
+    modStorageSize: "1Gi"
+  backup:
+    enabled: false
+    s3:
+      endpoint: ""
+      bucket: "kterodactyl-backups"
+      region: "us-east-1"
+      useSSL: "false"
+    retentionCount: "5"
