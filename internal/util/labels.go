@@ -49,6 +49,11 @@ const (
 const (
 	// AnnotationAllocated marks a GameServer as allocated (for Phase 1 kubectl-based allocation).
 	AnnotationAllocated = "kterodactyl.io/allocated"
+
+	// AnnotationModPath stores the container directory where mod files are stored.
+	// Set by the API handler at GameServer creation time from the game manifest's modPath field.
+	// Empty or absent means the game does not support mods.
+	AnnotationModPath = "kterodactyl.io/mod-path"
 )
 
 // Standard label values.

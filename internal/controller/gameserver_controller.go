@@ -116,6 +116,10 @@ type AdminConfig struct {
 	SMTPPort     int
 	SMTPUsername string
 	SMTPFrom     string // e.g., "Kterodactyl <noreply@example.com>"
+
+	// Mod storage
+	ModStorageSize  resource.Quantity // PVC size for mod storage per server (default: 1Gi)
+	ModStorageClass string            // StorageClass for mod PVCs (empty = cluster default)
 }
 
 // DefaultAdminConfig returns an AdminConfig with sensible default values.
@@ -151,6 +155,8 @@ func DefaultAdminConfig() *AdminConfig {
 		SMTPPort:                   587,
 		SMTPUsername:               "",
 		SMTPFrom:                   "",
+		ModStorageSize:             resource.MustParse("1Gi"),
+		ModStorageClass:            "",
 	}
 }
 
@@ -259,12 +265,19 @@ func LoadAdminConfig(ctx context.Context, c client.Client, namespace string) (*A
 		cfg.SMTPFrom = v
 	}
 
+	// Parse mod storage fields
+	parseQuantity("modStorageSize", &cfg.ModStorageSize)
+	if v, ok := cm.Data["modStorageClass"]; ok {
+		cfg.ModStorageClass = v
+	}
+
 	return cfg, nil
 }
 
 // +kubebuilder:rbac:groups=game.kterodactyl.io,resources=gameservers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=game.kterodactyl.io,resources=gameservers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=game.kterodactyl.io,resources=gameservers/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch
@@ -415,6 +428,14 @@ func (r *GameServerReconciler) reconcileCreating(ctx context.Context, gs *gamev1
 		log.Error(err, "Failed to ensure user namespace", "owner", owner)
 		return r.transitionState(ctx, gs, gamev1alpha1.GameServerStateError, "NamespaceSetupFailed",
 			fmt.Sprintf("Failed to set up user namespace: %v", err))
+	}
+
+	// Create mod storage PVC if the game supports mods
+	modPath := gs.Annotations[util.AnnotationModPath] // empty if game doesn't support mods
+	if modPath != "" {
+		if err := r.reconcileModPVC(ctx, gs, adminCfg); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to reconcile mod PVC: %w", err)
+		}
 	}
 
 	// Create or update the Pod
@@ -675,6 +696,22 @@ func (r *GameServerReconciler) reconcilePod(ctx context.Context, gs *gamev1alpha
 			RestartPolicy: corev1.RestartPolicyNever,
 		}
 
+		// Add mod storage volume mount if game supports mods
+		if modPath := gs.Annotations[util.AnnotationModPath]; modPath != "" {
+			pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+				Name: "mods",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: gs.Name + "-mods",
+					},
+				},
+			})
+			pod.Spec.Containers[0].VolumeMounts = append(pod.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{
+				Name:      "mods",
+				MountPath: modPath,
+			})
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -683,6 +720,51 @@ func (r *GameServerReconciler) reconcilePod(ctx context.Context, gs *gamev1alpha
 
 	log.Info("Pod reconciled", "name", pod.Name, "result", result)
 	r.Recorder.Eventf(gs, corev1.EventTypeNormal, "PodReconciled", "Pod %s %s", pod.Name, result)
+	return nil
+}
+
+// reconcileModPVC creates or updates a PersistentVolumeClaim for mod storage.
+// The PVC is owned by the GameServer CR so it is garbage collected on deletion.
+// PVC spec fields are only set on creation since they are immutable after creation.
+func (r *GameServerReconciler) reconcileModPVC(ctx context.Context, gs *gamev1alpha1.GameServer, cfg *AdminConfig) error {
+	log := logf.FromContext(ctx)
+
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gs.Name + "-mods",
+			Namespace: gs.Namespace,
+		},
+	}
+
+	result, err := controllerutil.CreateOrUpdate(ctx, r.Client, pvc, func() error {
+		// Set owner reference for garbage collection
+		if err := ctrl.SetControllerReference(gs, pvc, r.Scheme); err != nil {
+			return fmt.Errorf("failed to set owner reference on mod PVC: %w", err)
+		}
+
+		// Only set spec fields on creation (PVC specs are immutable after creation)
+		if pvc.CreationTimestamp.IsZero() {
+			pvc.Spec = corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: cfg.ModStorageSize,
+					},
+				},
+			}
+			if cfg.ModStorageClass != "" {
+				pvc.Spec.StorageClassName = &cfg.ModStorageClass
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create/update mod PVC: %w", err)
+	}
+
+	log.Info("Mod PVC reconciled", "name", pvc.Name, "result", result)
+	r.Recorder.Eventf(gs, corev1.EventTypeNormal, "ModPVCReconciled", "Mod PVC %s %s", pvc.Name, result)
 	return nil
 }
 
