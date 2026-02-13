@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 11 complete — Helm chart ready for install
+**Current focus:** Phase 12 in progress — Documentation site and content
 
 ## Current Position
 
-Phase: 11 of 12 (Helm Packaging)
-Plan: 2 of 2 in current phase
-Status: Phase 11 Complete
-Last activity: 2026-02-13 — Completed 11-02 (Chart Completion)
+Phase: 12 of 12 (Documentation)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-02-13 — Completed 12-01 (Docs Site Scaffold and Getting Started/Configuration)
 
-Progress: [██████████] 92%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 32
+- Total plans completed: 33
 - Average duration: 5min
-- Total execution time: 2.52 hours
+- Total execution time: 2.64 hours
 
 **By Phase:**
 
@@ -38,10 +38,11 @@ Progress: [██████████] 92%
 | 09-backup-system | 3/3 | 12min | 4min |
 | 10-observability | 2/2 | 3min | 2min |
 | 11-helm-packaging | 2/2 | 5min | 3min |
+| 12-documentation | 1/2 | 7min | 7min |
 
 **Recent Trend:**
-- Last 5 plans: 09-03 (3min), 10-01 (2min), 10-02 (1min), 11-01 (2min), 11-02 (3min)
-- Trend: Stable
+- Last 5 plans: 10-01 (2min), 10-02 (1min), 11-01 (2min), 11-02 (3min), 12-01 (7min)
+- Trend: Stable (12-01 higher due to content authoring)
 
 *Updated after each plan completion*
 
@@ -179,10 +180,13 @@ Recent decisions affecting current work:
 - AdminConfig ConfigMap name hardcoded as kterodactyl-admin-config (not fullname-prefixed) to match Go operator hardcoded lookup
 - SMTP/backup ConfigMap fields conditionally rendered only when respective features are enabled in values.yaml
 - gatewayNamespace defaults to Release.Namespace when not explicitly set
+- Docusaurus v3 docs-site/ directory alongside main project (not inside existing docs/)
+- Placeholder docs for pending sidebar categories to enable clean builds
+- Manual Helm values reference table (no helm-docs tool) for v1 simplicity
 
 ### Pending Todos
 
-- **TODO-01** (Phase 12): Write documentation explaining how Kterodactyl differs from Agones and Pterodactyl
+- ~~**TODO-01** (Phase 12): Write documentation explaining how Kterodactyl differs from Agones and Pterodactyl~~ RESOLVED in 12-01: overview.md includes comparison tables for both Agones and Pterodactyl
 - **TODO-02** (Testing): Create a Playwright script for CI/CD integration testing of features
 
 ### Blockers/Concerns
@@ -201,5 +205,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 11-02-PLAN.md (Chart Completion) -- Phase 11 complete
+Stopped at: Completed 12-01-PLAN.md (Docs Site Scaffold + Getting Started/Configuration)
 Resume file: None
