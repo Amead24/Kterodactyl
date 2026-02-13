@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 10 in progress — observability metrics
+**Current focus:** Phase 10 complete — observability metrics done
 
 ## Current Position
 
-Phase: 10 of 12 (Observability)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-13 — Completed 10-01 (Operator Metrics)
+Phase: 10 of 12 (Observability) -- COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase Complete
+Last activity: 2026-02-13 — Completed 10-02 (API Server Metrics)
 
-Progress: [████████░░] 79%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29
+- Total plans completed: 30
 - Average duration: 5min
-- Total execution time: 2.42 hours
+- Total execution time: 2.44 hours
 
 **By Phase:**
 
@@ -36,10 +36,10 @@ Progress: [████████░░] 79%
 | 07-console-realtime | 2/2 | 11min | 6min |
 | 08-mod-support | 3/3 | 9min | 3min |
 | 09-backup-system | 3/3 | 12min | 4min |
-| 10-observability | 1/2 | 2min | 2min |
+| 10-observability | 2/2 | 3min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 08-03 (2min), 09-01 (6min), 09-02 (3min), 09-03 (3min), 10-01 (2min)
+- Last 5 plans: 09-01 (6min), 09-02 (3min), 09-03 (3min), 10-01 (2min), 10-02 (1min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -168,6 +168,9 @@ Recent decisions affecting current work:
 - All 5 Prometheus metrics (operator + API) defined in single internal/metrics/metrics.go to prevent duplicate registration panics
 - Metrics registered with controller-runtime metrics.Registry via init() (not default prometheus registry)
 - Reconcile method restructured to capture result/err for gauge update after state dispatch
+- metricsMiddleware placed first in /api/v1 route group to capture full request duration including auth and timeout
+- statusRecorder intentionally simple (no Flusher/Hijacker/Pusher) since WebSocket route is outside the REST group
+- Chi route patterns used as metric labels for low cardinality (not raw URL paths)
 
 ### Pending Todos
 
@@ -190,5 +193,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 10-01-PLAN.md (Operator Metrics)
+Stopped at: Completed 10-02-PLAN.md (API Server Metrics) -- Phase 10 complete
 Resume file: None
