@@ -112,3 +112,9 @@ export interface MetricsResponse {
   cpuLimit: number;     // millicores from spec
   memoryLimitMiB: number; // MiB from spec
 }
+
+/** Matches internal/api/handlers_mods.go ModFileResponse */
+export interface ModFileResponse {
+  name: string;
+  size: number;
+}

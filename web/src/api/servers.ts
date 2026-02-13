@@ -1,10 +1,11 @@
-import { apiFetch } from '@/api/client';
+import { apiFetch, apiUpload } from '@/api/client';
 import type {
   GameServerResponse,
   CreateGameServerRequest,
   UpdateGameServerRequest,
   ListResponse,
   MetricsResponse,
+  ModFileResponse,
 } from '@/types/api';
 
 /** GET /gameservers -- List all game servers for the current user. */
@@ -69,4 +70,25 @@ export function restartServer(name: string): Promise<GameServerResponse> {
 /** GET /gameservers/{name}/metrics -- Get resource usage for a game server. */
 export function getServerMetrics(name: string): Promise<MetricsResponse> {
   return apiFetch<MetricsResponse>(`/gameservers/${name}/metrics`);
+}
+
+/** POST /gameservers/{name}/mods -- Upload a mod file. */
+export function uploadMod(
+  name: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<ModFileResponse> {
+  return apiUpload<ModFileResponse>(`/gameservers/${name}/mods`, file, onProgress);
+}
+
+/** GET /gameservers/{name}/mods -- List installed mods. */
+export function listMods(name: string): Promise<ListResponse<ModFileResponse>> {
+  return apiFetch<ListResponse<ModFileResponse>>(`/gameservers/${name}/mods`);
+}
+
+/** DELETE /gameservers/{name}/mods/{filename} -- Delete a mod. */
+export function deleteMod(name: string, filename: string): Promise<void> {
+  return apiFetch<void>(`/gameservers/${name}/mods/${encodeURIComponent(filename)}`, {
+    method: 'DELETE',
+  });
 }
