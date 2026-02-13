@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Frontend UI** - React/Next.js admin interface with dynamic forms
 - [x] **Phase 7: Console & Real-time Features** - WebSocket console and resource monitoring
 - [x] **Phase 8: Mod Support** - User mod uploads with persistent storage
-- [ ] **Phase 9: Backup System** - S3-compatible backups and restore functionality
+- [x] **Phase 9: Backup System** - S3-compatible backups and restore functionality
 - [ ] **Phase 10: Observability** - Prometheus metrics for operator and servers
 - [ ] **Phase 11: Helm Packaging** - Production-ready Helm chart for installation
 - [ ] **Phase 12: Documentation** - Docusaurus site with guides and reference docs
@@ -171,9 +171,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — Backup CRD types, BackupReconciler with S3 backup/restore, backupPath manifest field, AdminConfig S3 config
-- [ ] 09-02-PLAN.md — Backup API handlers (create, list, delete, restore, schedule) and route registration
-- [ ] 09-03-PLAN.md — Frontend backup UI with trigger button, backup list, restore dialog, and Backups tab
+- [x] 09-01-PLAN.md — Backup CRD types, BackupReconciler with S3 backup/restore, backupPath manifest field, AdminConfig S3 config
+- [x] 09-02-PLAN.md — Backup API handlers (create, list, delete, restore, schedule) and route registration
+- [x] 09-03-PLAN.md — Frontend backup UI with trigger button, backup list, restore dialog, and Backups tab
 
 ### Phase 10: Observability
 **Goal**: Operators and game servers expose Prometheus metrics for monitoring
@@ -232,7 +232,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Frontend UI | 4/4 | ✓ Complete | 2026-02-11 |
 | 7. Console & Real-time Features | 2/2 | ✓ Complete | 2026-02-12 |
 | 8. Mod Support | 3/3 | ✓ Complete | 2026-02-12 |
-| 9. Backup System | 0/3 | Not started | - |
+| 9. Backup System | 3/3 | ✓ Complete | 2026-02-12 |
 | 10. Observability | 0/TBD | Not started | - |
 | 11. Helm Packaging | 0/TBD | Not started | - |
 | 12. Documentation | 0/TBD | Not started | - |
