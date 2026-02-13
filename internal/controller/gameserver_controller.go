@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	gamev1alpha1 "github.com/kterodactyl/kterodactyl/api/v1alpha1"
+	"github.com/kterodactyl/kterodactyl/internal/metrics"
 	"github.com/kterodactyl/kterodactyl/internal/util"
 )
 
@@ -328,6 +329,12 @@ func LoadAdminConfig(ctx context.Context, c client.Client, namespace string) (*A
 func (r *GameServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
+	// Record reconciliation duration for all reconciliations (including no-ops)
+	start := time.Now()
+	defer func() {
+		metrics.ReconciliationDuration.WithLabelValues("gameserver").Observe(time.Since(start).Seconds())
+	}()
+
 	// 1. Fetch the GameServer CR
 	gs := &gamev1alpha1.GameServer{}
 	if err := r.Get(ctx, req.NamespacedName, gs); err != nil {
@@ -359,23 +366,31 @@ func (r *GameServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// 5. Dispatch to state-specific reconciler
+	var result ctrl.Result
+	var err error
+
 	switch gs.Status.State {
 	case gamev1alpha1.GameServerStateCreating:
-		return r.reconcileCreating(ctx, gs)
+		result, err = r.reconcileCreating(ctx, gs)
 	case gamev1alpha1.GameServerStateStarting:
-		return r.reconcileStarting(ctx, gs)
+		result, err = r.reconcileStarting(ctx, gs)
 	case gamev1alpha1.GameServerStateReady:
-		return r.reconcileReady(ctx, gs)
+		result, err = r.reconcileReady(ctx, gs)
 	case gamev1alpha1.GameServerStateAllocated:
-		return r.reconcileAllocated(ctx, gs)
+		result, err = r.reconcileAllocated(ctx, gs)
 	case gamev1alpha1.GameServerStateShutdown:
-		return r.reconcileShutdown(ctx, gs)
+		result, err = r.reconcileShutdown(ctx, gs)
 	case gamev1alpha1.GameServerStateError:
-		return r.reconcileError(ctx, gs)
+		result, err = r.reconcileError(ctx, gs)
 	default:
 		log.Error(nil, "Unknown state", "state", gs.Status.State)
 		return ctrl.Result{}, nil
 	}
+
+	// Update game server count gauge after each reconciliation
+	r.updateGameServerGauge(ctx)
+
+	return result, err
 }
 
 // initializeState sets the initial Creating state on a new GameServer.
@@ -1219,6 +1234,40 @@ func isPodReady(pod *corev1.Pod) bool {
 	}
 	// Also need at least one container status to exist
 	return len(pod.Status.ContainerStatuses) > 0
+}
+
+// updateGameServerGauge lists all GameServer resources and updates the
+// gameservers_by_state gauge with current counts by (state, gameType).
+// Errors are logged but never returned -- metrics must never fail reconciliation.
+func (r *GameServerReconciler) updateGameServerGauge(ctx context.Context) {
+	log := logf.FromContext(ctx)
+
+	gsList := &gamev1alpha1.GameServerList{}
+	if err := r.List(ctx, gsList); err != nil {
+		log.Error(err, "Failed to list GameServers for metrics gauge update")
+		return
+	}
+
+	// Reset all known label combinations to avoid stale values
+	metrics.GameServersByState.Reset()
+
+	// Count servers by (state, gameType) pair
+	counts := make(map[string]map[string]float64)
+	for _, gs := range gsList.Items {
+		state := string(gs.Status.State)
+		gameType := gs.Spec.GameType
+		if counts[state] == nil {
+			counts[state] = make(map[string]float64)
+		}
+		counts[state][gameType]++
+	}
+
+	// Set gauge values
+	for state, gameTypes := range counts {
+		for gameType, count := range gameTypes {
+			metrics.GameServersByState.WithLabelValues(state, gameType).Set(count)
+		}
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
