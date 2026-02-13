@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Console & Real-time Features** - WebSocket console and resource monitoring
 - [x] **Phase 8: Mod Support** - User mod uploads with persistent storage
 - [x] **Phase 9: Backup System** - S3-compatible backups and restore functionality
-- [ ] **Phase 10: Observability** - Prometheus metrics for operator and servers
+- [x] **Phase 10: Observability** - Prometheus metrics for operator and servers
 - [ ] **Phase 11: Helm Packaging** - Production-ready Helm chart for installation
 - [ ] **Phase 12: Documentation** - Docusaurus site with guides and reference docs
 
@@ -187,8 +187,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Centralized metric definitions and operator reconciler instrumentation
-- [ ] 10-02-PLAN.md — API HTTP metrics middleware, route wiring, and ServiceMonitor enablement
+- [x] 10-01-PLAN.md — Centralized metric definitions and operator reconciler instrumentation
+- [x] 10-02-PLAN.md — API HTTP metrics middleware, route wiring, and ServiceMonitor enablement
 
 ### Phase 11: Helm Packaging
 **Goal**: Kterodactyl installs via a single helm install command with proper defaults
@@ -234,6 +234,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Console & Real-time Features | 2/2 | ✓ Complete | 2026-02-12 |
 | 8. Mod Support | 3/3 | ✓ Complete | 2026-02-12 |
 | 9. Backup System | 3/3 | ✓ Complete | 2026-02-12 |
-| 10. Observability | 0/2 | Not started | - |
+| 10. Observability | 2/2 | ✓ Complete | 2026-02-12 |
 | 11. Helm Packaging | 0/TBD | Not started | - |
 | 12. Documentation | 0/TBD | Not started | - |
