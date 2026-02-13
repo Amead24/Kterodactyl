@@ -148,6 +148,14 @@ func (s *Server) handleCreateGameServer(w http.ResponseWriter, r *http.Request) 
 		},
 	}
 
+	// Set mod path annotation if game supports mods
+	if m.ModPath != "" {
+		if gs.Annotations == nil {
+			gs.Annotations = make(map[string]string)
+		}
+		gs.Annotations[util.AnnotationModPath] = m.ModPath
+	}
+
 	ctx := r.Context()
 	if err := s.client.Create(ctx, gs); err != nil {
 		if k8serrors.IsAlreadyExists(err) {

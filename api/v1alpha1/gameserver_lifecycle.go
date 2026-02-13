@@ -31,8 +31,8 @@ const (
 var ValidTransitions = map[GameServerState][]GameServerState{
 	GameServerStateCreating:  {GameServerStateStarting, GameServerStateError},
 	GameServerStateStarting:  {GameServerStateReady, GameServerStateCreating, GameServerStateError, GameServerStateShutdown},
-	GameServerStateReady:     {GameServerStateAllocated, GameServerStateError, GameServerStateShutdown},
-	GameServerStateAllocated: {GameServerStateReady, GameServerStateError, GameServerStateShutdown},
+	GameServerStateReady:     {GameServerStateAllocated, GameServerStateCreating, GameServerStateError, GameServerStateShutdown},
+	GameServerStateAllocated: {GameServerStateReady, GameServerStateCreating, GameServerStateError, GameServerStateShutdown},
 	GameServerStateShutdown:  {GameServerStateCreating}, // Can restart from shutdown via API lifecycle endpoints
 	GameServerStateError:     {GameServerStateShutdown, GameServerStateCreating}, // Can shutdown or restart from error
 }
