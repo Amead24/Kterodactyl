@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 9 of 12 (Backup System)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-02-13 — Completed 09-01 (Backup System Backend)
+Last activity: 2026-02-13 — Completed 09-02 (Backup API Endpoints)
 
-Progress: [███████░░░] 72%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26
+- Total plans completed: 27
 - Average duration: 5min
-- Total execution time: 2.29 hours
+- Total execution time: 2.34 hours
 
 **By Phase:**
 
@@ -35,10 +35,10 @@ Progress: [███████░░░] 72%
 | 06-frontend-ui | 4/4 | 22min | 6min |
 | 07-console-realtime | 2/2 | 11min | 6min |
 | 08-mod-support | 3/3 | 9min | 3min |
-| 09-backup-system | 1/3 | 6min | 6min |
+| 09-backup-system | 2/3 | 9min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 07-02 (4min), 08-01 (3min), 08-02 (4min), 08-03 (2min), 09-01 (6min)
+- Last 5 plans: 08-01 (3min), 08-02 (4min), 08-03 (2min), 09-01 (6min), 09-02 (3min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -159,6 +159,9 @@ Recent decisions affecting current work:
 - BackupPath field on game manifests defaults to /data; stored as annotation on GameServer (AnnotationBackupPath)
 - minio-go/v7 for S3-compatible storage (works with MinIO, AWS S3, GCS); robfig/cron/v3 for schedule parsing
 - 30-minute context timeout for backup operations; 64MB multipart upload part size
+- Direct restore in API handler (S3->gunzip->tar-into-pod) rather than annotation-based reconciler approach; simpler for v1
+- Backup create/list endpoints available to authenticated users; delete/restore/schedule require admin role
+- Per-request S3 client in API handler for restore (not cached) since restore is infrequent
 
 ### Pending Todos
 
@@ -181,5 +184,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 09-01-PLAN.md (Backup System Backend)
+Stopped at: Completed 09-02-PLAN.md (Backup API Endpoints)
 Resume file: None
