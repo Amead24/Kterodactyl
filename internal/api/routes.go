@@ -67,8 +67,9 @@ func (s *Server) routes() chi.Router {
 	// upgrade requests cannot carry Authorization headers.
 	r.Get("/api/v1/gameservers/{name}/console", s.handleConsole)
 
-	// REST API routes WITH timeout and authentication
+	// REST API routes WITH metrics, timeout, and authentication
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(metricsMiddleware)
 		r.Use(middleware.Timeout(30 * time.Second))
 		r.Use(s.authMiddleware.Authenticate)
 
