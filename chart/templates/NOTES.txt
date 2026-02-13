@@ -1,0 +1,58 @@
+Kterodactyl has been installed!
+
+1. Access the API server:
+{{- if eq .Values.apiService.type "LoadBalancer" }}
+
+   Wait for the LoadBalancer IP:
+   kubectl get svc {{ include "kterodactyl.fullname" . }}-api -n {{ .Release.Namespace }} -w
+
+   Once assigned, the API is available at http://<EXTERNAL-IP>:{{ .Values.apiService.port }}
+{{- else }}
+
+   kubectl port-forward svc/{{ include "kterodactyl.fullname" . }}-api -n {{ .Release.Namespace }} {{ .Values.apiService.port }}:{{ .Values.apiService.port }}
+
+   Then visit: http://localhost:{{ .Values.apiService.port }}
+{{- end }}
+
+2. JWT signing key:
+
+   A JWT signing key is auto-generated on first start and stored in a
+   Kubernetes Secret named "kterodactyl-jwt-signing-key" in the release
+   namespace. No manual action required.
+
+3. Secrets (must be created manually -- NOT managed by the chart):
+{{- if .Values.adminConfig.backup.enabled }}
+
+   S3 backup credentials:
+   kubectl create secret generic kterodactyl-s3-credentials \
+     -n {{ .Release.Namespace }} \
+     --from-literal=access-key=YOUR_ACCESS_KEY \
+     --from-literal=secret-key=YOUR_SECRET_KEY
+{{- end }}
+{{- if .Values.adminConfig.smtp.host }}
+
+   SMTP credentials:
+   kubectl create secret generic kterodactyl-smtp-credentials \
+     -n {{ .Release.Namespace }} \
+     --from-literal=password=YOUR_SMTP_PASSWORD
+{{- end }}
+{{- if and (not .Values.adminConfig.backup.enabled) (not .Values.adminConfig.smtp.host) }}
+
+   No secrets required with current configuration.
+   Enable backup (adminConfig.backup.enabled) or SMTP (adminConfig.smtp.host)
+   to see required secret creation commands.
+{{- end }}
+
+4. CRD upgrades:
+
+   Helm does not upgrade CRDs automatically. After chart upgrades, apply
+   CRDs manually if they have changed:
+
+   kubectl apply -f chart/crds/
+
+5. Create your first admin user:
+
+   Use the API to bootstrap:
+   curl -X POST http://localhost:{{ .Values.apiService.port }}/api/v1/auth/bootstrap \
+     -H "Content-Type: application/json" \
+     -d '{"username":"admin","password":"changeme","email":"admin@example.com"}'
