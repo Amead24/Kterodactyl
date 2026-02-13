@@ -4,6 +4,7 @@ import {
   Activity,
   ArrowLeft,
   Copy,
+  Package,
   Play,
   Square,
   RotateCcw,
@@ -49,6 +50,8 @@ import {
 import { ServerStatusBadge } from '@/components/servers/server-status-badge';
 import { ConsolePanel } from '@/components/console/console-panel';
 import { MetricsPanel } from '@/components/servers/metrics-panel';
+import { ModUpload } from '@/components/mods/mod-upload';
+import { ModList } from '@/components/mods/mod-list';
 import {
   useServer,
   useStartServer,
@@ -148,6 +151,12 @@ export default function ServerDetailPage() {
             <TabsTrigger value="resources">
               <Activity className="mr-1 size-4" />
               Resources
+            </TabsTrigger>
+          )}
+          {isActive && (
+            <TabsTrigger value="mods">
+              <Package className="mr-1 size-4" />
+              Mods
             </TabsTrigger>
           )}
         </TabsList>
@@ -372,6 +381,28 @@ export default function ServerDetailPage() {
         {/* Resources Tab */}
         <TabsContent value="resources">
           <MetricsPanel serverName={server.name} enabled={isActive} />
+        </TabsContent>
+
+        {/* Mods Tab */}
+        <TabsContent value="mods" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Mods</CardTitle>
+              <CardDescription>Upload mod files to your server. The server will restart after upload.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ModUpload serverName={server.name} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Installed Mods</CardTitle>
+              <CardDescription>Manage installed mod files</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ModList serverName={server.name} enabled={isActive} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
