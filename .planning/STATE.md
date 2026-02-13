@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 9 complete — backup system done
+**Current focus:** Phase 10 in progress — observability metrics
 
 ## Current Position
 
-Phase: 9 of 12 (Backup System)
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-02-13 — Completed 09-03 (Backup Frontend UI)
+Phase: 10 of 12 (Observability)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-02-13 — Completed 10-01 (Operator Metrics)
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 79%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28
+- Total plans completed: 29
 - Average duration: 5min
-- Total execution time: 2.39 hours
+- Total execution time: 2.42 hours
 
 **By Phase:**
 
@@ -36,9 +36,10 @@ Progress: [████████░░] 75%
 | 07-console-realtime | 2/2 | 11min | 6min |
 | 08-mod-support | 3/3 | 9min | 3min |
 | 09-backup-system | 3/3 | 12min | 4min |
+| 10-observability | 1/2 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 08-02 (4min), 08-03 (2min), 09-01 (6min), 09-02 (3min), 09-03 (3min)
+- Last 5 plans: 08-03 (2min), 09-01 (6min), 09-02 (3min), 09-03 (3min), 10-01 (2min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -164,6 +165,9 @@ Recent decisions affecting current work:
 - Per-request S3 client in API handler for restore (not cached) since restore is infrequent
 - Backups tab always visible on server detail page (not gated by server state) so users can view backup history when server is stopped
 - Create Backup card conditionally rendered only when server is active (backup requires running pod)
+- All 5 Prometheus metrics (operator + API) defined in single internal/metrics/metrics.go to prevent duplicate registration panics
+- Metrics registered with controller-runtime metrics.Registry via init() (not default prometheus registry)
+- Reconcile method restructured to capture result/err for gauge update after state dispatch
 
 ### Pending Todos
 
@@ -186,5 +190,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 09-03-PLAN.md (Backup Frontend UI) -- Phase 09 complete
+Stopped at: Completed 10-01-PLAN.md (Operator Metrics)
 Resume file: None
