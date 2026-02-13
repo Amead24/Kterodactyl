@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 10 complete — observability metrics done
+**Current focus:** Phase 11 in progress — Helm chart packaging
 
 ## Current Position
 
-Phase: 10 of 12 (Observability) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase Complete
-Last activity: 2026-02-13 — Completed 10-02 (API Server Metrics)
+Phase: 11 of 12 (Helm Packaging)
+Plan: 1 of 2 in current phase
+Status: Plan 01 Complete
+Last activity: 2026-02-13 — Completed 11-01 (Chart Foundation)
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
+- Total plans completed: 31
 - Average duration: 5min
-- Total execution time: 2.44 hours
+- Total execution time: 2.47 hours
 
 **By Phase:**
 
@@ -37,9 +37,10 @@ Progress: [████████░░] 82%
 | 08-mod-support | 3/3 | 9min | 3min |
 | 09-backup-system | 3/3 | 12min | 4min |
 | 10-observability | 2/2 | 3min | 2min |
+| 11-helm-packaging | 1/2 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 09-01 (6min), 09-02 (3min), 09-03 (3min), 10-01 (2min), 10-02 (1min)
+- Last 5 plans: 09-02 (3min), 09-03 (3min), 10-01 (2min), 10-02 (1min), 11-01 (2min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -171,6 +172,10 @@ Recent decisions affecting current work:
 - metricsMiddleware placed first in /api/v1 route group to capture full request duration including auth and timeout
 - statusRecorder intentionally simple (no Flusher/Hijacker/Pusher) since WebSocket route is outside the REST group
 - Chi route patterns used as metric labels for low cardinality (not raw URL paths)
+- Hand-crafted Helm chart at chart/ over helmify/Kubebuilder helm plugin for full control over values.yaml schema
+- CRDs in chart/crds/ as plain YAML (no templating per Helm convention; auto install ordering)
+- API Service added in chart (not in kustomize) to expose port 8080 for user access
+- OPERATOR_NAMESPACE in Deployment via downward API fieldRef (always matches deployment namespace)
 
 ### Pending Todos
 
@@ -193,5 +198,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 10-02-PLAN.md (API Server Metrics) -- Phase 10 complete
+Stopped at: Completed 11-01-PLAN.md (Chart Foundation)
 Resume file: None
