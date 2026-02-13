@@ -219,6 +219,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "DNS")
 		os.Exit(1)
 	}
+
 	// +kubebuilder:scaffold:builder
 
 	// Bootstrap: create a direct K8s client for pre-start operations.
@@ -229,10 +230,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create kubernetes.Clientset for pod logs/exec operations (WebSocket console)
+	// Create kubernetes.Clientset for pod logs/exec operations (WebSocket console, backups)
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		setupLog.Error(err, "failed to create kubernetes clientset")
+		os.Exit(1)
+	}
+
+	// Register BackupReconciler (requires clientset and restConfig for pod exec)
+	if err := (&controller.BackupReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		Recorder:          mgr.GetEventRecorderFor("backup-controller"),
+		OperatorNamespace: operatorNamespace,
+		Clientset:         clientset,
+		RestConfig:        restConfig,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Backup")
 		os.Exit(1)
 	}
 

@@ -62,6 +62,7 @@ rules:
 - apiGroups:
   - game.kterodactyl.io
   resources:
+  - backups
   - gameservers
   verbs:
   - create
@@ -74,12 +75,14 @@ rules:
 - apiGroups:
   - game.kterodactyl.io
   resources:
+  - backups/finalizers
   - gameservers/finalizers
   verbs:
   - update
 - apiGroups:
   - game.kterodactyl.io
   resources:
+  - backups/status
   - gameservers/status
   verbs:
   - get
