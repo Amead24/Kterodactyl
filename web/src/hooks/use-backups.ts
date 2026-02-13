@@ -3,12 +3,12 @@ import { createBackup, listBackups, deleteBackup, restoreBackup } from '@/api/ba
 import { toast } from 'sonner';
 
 /** Fetch and cache backups for a server. Polls every 10 seconds. */
-export function useBackups(serverName: string) {
+export function useBackups(serverName: string, enabled = true) {
   return useQuery({
     queryKey: ['backups', serverName],
     queryFn: () => listBackups(serverName),
     refetchInterval: 10_000,
-    enabled: !!serverName,
+    enabled: enabled && !!serverName,
   });
 }
 

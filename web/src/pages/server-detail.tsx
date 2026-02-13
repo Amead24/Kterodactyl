@@ -4,6 +4,7 @@ import {
   Activity,
   ArrowLeft,
   Copy,
+  HardDrive,
   Package,
   Play,
   Square,
@@ -52,6 +53,8 @@ import { ConsolePanel } from '@/components/console/console-panel';
 import { MetricsPanel } from '@/components/servers/metrics-panel';
 import { ModUpload } from '@/components/mods/mod-upload';
 import { ModList } from '@/components/mods/mod-list';
+import { BackupTrigger } from '@/components/backups/backup-trigger';
+import { BackupList } from '@/components/backups/backup-list';
 import {
   useServer,
   useStartServer,
@@ -159,6 +162,10 @@ export default function ServerDetailPage() {
               Mods
             </TabsTrigger>
           )}
+          <TabsTrigger value="backups">
+            <HardDrive className="mr-1 size-4" />
+            Backups
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab -- existing content */}
@@ -401,6 +408,32 @@ export default function ServerDetailPage() {
             </CardHeader>
             <CardContent>
               <ModList serverName={server.name} enabled={isActive} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Backups Tab */}
+        <TabsContent value="backups" className="space-y-6">
+          {isActive && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Create Backup</CardTitle>
+                <CardDescription>
+                  Create an on-demand backup of your server data to S3 storage
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BackupTrigger serverName={server.name} />
+              </CardContent>
+            </Card>
+          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Backup History</CardTitle>
+              <CardDescription>Previous backups of this server</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BackupList serverName={server.name} enabled={true} />
             </CardContent>
           </Card>
         </TabsContent>
