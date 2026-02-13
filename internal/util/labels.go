@@ -43,6 +43,9 @@ const (
 	// LabelManagedByKterodactyl indicates a namespace is managed by the kterodactyl operator.
 	// Value should be "kterodactyl".
 	LabelManagedByKterodactyl = "kterodactyl.io/managed-by"
+
+	// LabelBackupGameServer identifies which GameServer a Backup belongs to.
+	LabelBackupGameServer = "kterodactyl.io/backup-gameserver"
 )
 
 // Kterodactyl-specific annotation keys.
@@ -54,6 +57,21 @@ const (
 	// Set by the API handler at GameServer creation time from the game manifest's modPath field.
 	// Empty or absent means the game does not support mods.
 	AnnotationModPath = "kterodactyl.io/mod-path"
+
+	// AnnotationBackupPath stores the container directory to back up.
+	// Set by the API handler at GameServer creation time from the game manifest's backupPath field.
+	// Defaults to "/data" if not specified.
+	AnnotationBackupPath = "kterodactyl.io/backup-path"
+
+	// AnnotationBackupSchedule stores a cron expression for scheduled backups.
+	// Set by admin via API on the GameServer.
+	AnnotationBackupSchedule = "kterodactyl.io/backup-schedule"
+
+	// AnnotationBackupRetention stores the max number of backups to retain per server.
+	AnnotationBackupRetention = "kterodactyl.io/backup-retention"
+
+	// AnnotationLastBackupTime stores the timestamp of the last scheduled backup.
+	AnnotationLastBackupTime = "kterodactyl.io/last-backup-time"
 )
 
 // Standard label values.

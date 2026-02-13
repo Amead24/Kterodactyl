@@ -59,6 +59,10 @@ type GameManifest struct {
 	// Empty means game does not support mods.
 	ModPath string `yaml:"modPath"`
 
+	// BackupPath is the container directory where game data to back up is stored.
+	// Defaults to /data if empty.
+	BackupPath string `yaml:"backupPath"`
+
 	// ParameterSchema is the raw JSON Schema object defining parameter
 	// types, constraints, and UI metadata. Stored as a generic map
 	// so it can be serialized to JSON and consumed by the frontend.
@@ -81,6 +85,7 @@ type rawGameManifest struct {
 	Parameters      map[string]string      `yaml:"parameters"`
 	Resources       rawResources           `yaml:"resources"`
 	ModPath         string                 `yaml:"modPath"`
+	BackupPath      string                 `yaml:"backupPath"`
 	ParameterSchema map[string]interface{} `yaml:"parameterSchema"`
 }
 
@@ -210,6 +215,7 @@ func LoadFromDirectory(dir string) (*Loader, error) {
 			DisplayName: raw.DisplayName,
 			Image:       raw.Image,
 			ModPath:     raw.ModPath,
+			BackupPath:  raw.BackupPath,
 			Ports:       ports,
 			Parameters:  raw.Parameters,
 			Resources: corev1.ResourceRequirements{

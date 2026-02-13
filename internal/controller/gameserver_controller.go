@@ -120,6 +120,13 @@ type AdminConfig struct {
 	// Mod storage
 	ModStorageSize  resource.Quantity // PVC size for mod storage per server (default: 1Gi)
 	ModStorageClass string            // StorageClass for mod PVCs (empty = cluster default)
+
+	// Backup S3 configuration
+	BackupS3Endpoint     string // S3-compatible endpoint (e.g., "minio.local:9000")
+	BackupS3Bucket       string // S3 bucket name for backups (default: "kterodactyl-backups")
+	BackupS3Region       string // S3 region (default: "us-east-1")
+	BackupS3UseSSL       bool   // Use TLS for S3 connections
+	BackupRetentionCount int    // Max backups per server (default: 5)
 }
 
 // DefaultAdminConfig returns an AdminConfig with sensible default values.
@@ -157,6 +164,11 @@ func DefaultAdminConfig() *AdminConfig {
 		SMTPFrom:                   "",
 		ModStorageSize:             resource.MustParse("1Gi"),
 		ModStorageClass:            "",
+		BackupS3Endpoint:           "",                    // Empty means backup not configured
+		BackupS3Bucket:             "kterodactyl-backups",
+		BackupS3Region:             "us-east-1",
+		BackupS3UseSSL:             false,
+		BackupRetentionCount:       5,
 	}
 }
 
@@ -269,6 +281,27 @@ func LoadAdminConfig(ctx context.Context, c client.Client, namespace string) (*A
 	parseQuantity("modStorageSize", &cfg.ModStorageSize)
 	if v, ok := cm.Data["modStorageClass"]; ok {
 		cfg.ModStorageClass = v
+	}
+
+	// Parse backup S3 fields
+	if v, ok := cm.Data["backupS3Endpoint"]; ok {
+		cfg.BackupS3Endpoint = v
+	}
+	if v, ok := cm.Data["backupS3Bucket"]; ok && v != "" {
+		cfg.BackupS3Bucket = v
+	}
+	if v, ok := cm.Data["backupS3Region"]; ok && v != "" {
+		cfg.BackupS3Region = v
+	}
+	if v, ok := cm.Data["backupS3UseSSL"]; ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.BackupS3UseSSL = b
+		}
+	}
+	if v, ok := cm.Data["backupRetentionCount"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.BackupRetentionCount = n
+		}
 	}
 
 	return cfg, nil
