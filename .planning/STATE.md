@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 11 in progress — Helm chart packaging
+**Current focus:** Phase 11 complete — Helm chart ready for install
 
 ## Current Position
 
 Phase: 11 of 12 (Helm Packaging)
-Plan: 1 of 2 in current phase
-Status: Plan 01 Complete
-Last activity: 2026-02-13 — Completed 11-01 (Chart Foundation)
+Plan: 2 of 2 in current phase
+Status: Phase 11 Complete
+Last activity: 2026-02-13 — Completed 11-02 (Chart Completion)
 
-Progress: [█████████░] 88%
+Progress: [██████████] 92%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31
+- Total plans completed: 32
 - Average duration: 5min
-- Total execution time: 2.47 hours
+- Total execution time: 2.52 hours
 
 **By Phase:**
 
@@ -37,10 +37,10 @@ Progress: [█████████░] 88%
 | 08-mod-support | 3/3 | 9min | 3min |
 | 09-backup-system | 3/3 | 12min | 4min |
 | 10-observability | 2/2 | 3min | 2min |
-| 11-helm-packaging | 1/2 | 2min | 2min |
+| 11-helm-packaging | 2/2 | 5min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 09-02 (3min), 09-03 (3min), 10-01 (2min), 10-02 (1min), 11-01 (2min)
+- Last 5 plans: 09-03 (3min), 10-01 (2min), 10-02 (1min), 11-01 (2min), 11-02 (3min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -176,6 +176,9 @@ Recent decisions affecting current work:
 - CRDs in chart/crds/ as plain YAML (no templating per Helm convention; auto install ordering)
 - API Service added in chart (not in kustomize) to expose port 8080 for user access
 - OPERATOR_NAMESPACE in Deployment via downward API fieldRef (always matches deployment namespace)
+- AdminConfig ConfigMap name hardcoded as kterodactyl-admin-config (not fullname-prefixed) to match Go operator hardcoded lookup
+- SMTP/backup ConfigMap fields conditionally rendered only when respective features are enabled in values.yaml
+- gatewayNamespace defaults to Release.Namespace when not explicitly set
 
 ### Pending Todos
 
@@ -198,5 +201,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 11-01-PLAN.md (Chart Foundation)
+Stopped at: Completed 11-02-PLAN.md (Chart Completion) -- Phase 11 complete
 Resume file: None
