@@ -199,10 +199,11 @@ Plans:
   2. Helm values support configuration of Gateway API vs Ingress, storage class, and domain
   3. CRDs install via crds/ directory with proper ordering
   4. Chart works on both single-node homelab and multi-node cluster deployments
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 11-01-PLAN.md — Chart scaffold, values.yaml, helpers, CRDs, Deployment, and Service templates
+- [ ] 11-02-PLAN.md — RBAC templates, AdminConfig ConfigMap, conditional resources, NOTES.txt, and validation
 
 ### Phase 12: Documentation
 **Goal**: Users and contributors have comprehensive Docusaurus documentation
@@ -235,5 +236,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Mod Support | 3/3 | ✓ Complete | 2026-02-12 |
 | 9. Backup System | 3/3 | ✓ Complete | 2026-02-12 |
 | 10. Observability | 2/2 | ✓ Complete | 2026-02-12 |
-| 11. Helm Packaging | 0/TBD | Not started | - |
+| 11. Helm Packaging | 0/2 | Not started | - |
 | 12. Documentation | 0/TBD | Not started | - |
