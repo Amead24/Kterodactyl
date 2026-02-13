@@ -91,6 +91,13 @@ func (s *Server) routes() chi.Router {
 				r.Post("/stop", s.handleStopGameServer)
 				r.Post("/restart", s.handleRestartGameServer)
 				r.Get("/metrics", s.handleGetMetrics)
+				// Mod management
+				// NOTE: Large uploads may need timeout increase for v2; 30s suffices for v1 (100MB limit, local cluster).
+				r.Route("/mods", func(r chi.Router) {
+					r.Post("/", s.handleUploadMod)
+					r.Get("/", s.handleListMods)
+					r.Delete("/{filename}", s.handleDeleteMod)
+				})
 			})
 		})
 
