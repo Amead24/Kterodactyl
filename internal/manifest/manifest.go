@@ -55,6 +55,10 @@ type GameManifest struct {
 	// Resources defines CPU/memory requests and limits for the game server container.
 	Resources corev1.ResourceRequirements `yaml:"-"`
 
+	// ModPath is the container directory where mod files are stored.
+	// Empty means game does not support mods.
+	ModPath string `yaml:"modPath"`
+
 	// ParameterSchema is the raw JSON Schema object defining parameter
 	// types, constraints, and UI metadata. Stored as a generic map
 	// so it can be serialized to JSON and consumed by the frontend.
@@ -76,6 +80,7 @@ type rawGameManifest struct {
 	Ports           []rawPort              `yaml:"ports"`
 	Parameters      map[string]string      `yaml:"parameters"`
 	Resources       rawResources           `yaml:"resources"`
+	ModPath         string                 `yaml:"modPath"`
 	ParameterSchema map[string]interface{} `yaml:"parameterSchema"`
 }
 
@@ -204,6 +209,7 @@ func LoadFromDirectory(dir string) (*Loader, error) {
 			Name:        raw.Name,
 			DisplayName: raw.DisplayName,
 			Image:       raw.Image,
+			ModPath:     raw.ModPath,
 			Ports:       ports,
 			Parameters:  raw.Parameters,
 			Resources: corev1.ResourceRequirements{

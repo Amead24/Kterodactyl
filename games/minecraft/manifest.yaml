@@ -1,6 +1,7 @@
 name: minecraft
 displayName: "Minecraft Java Edition"
 image: itzg/minecraft-server:latest
+modPath: /mods
 ports:
   - name: game
     containerPort: 25565
