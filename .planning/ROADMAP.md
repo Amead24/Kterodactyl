@@ -214,10 +214,11 @@ Plans:
   2. Game definition contribution guide exists with Minecraft example walkthrough
   3. Helm values reference documents all configurable options
   4. Architecture overview exists for contributors
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 12-01-PLAN.md — Scaffold Docusaurus site, configure Mermaid/sidebar, write Getting Started and Configuration docs
+- [ ] 12-02-PLAN.md — Write Usage, Contributing, and Reference docs, update README
 
 ## Progress
 
