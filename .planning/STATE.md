@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 8 in progress — mod support infrastructure
+**Current focus:** Phase 9 in progress — backup system
 
 ## Current Position
 
-Phase: 8 of 12 (Mod Support) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-02-13 — Completed 08-03 (Mod Frontend UI)
+Phase: 9 of 12 (Backup System)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-02-13 — Completed 09-01 (Backup System Backend)
 
-Progress: [██████░░░░] 67%
+Progress: [███████░░░] 72%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: 5min
-- Total execution time: 2.19 hours
+- Total execution time: 2.29 hours
 
 **By Phase:**
 
@@ -35,9 +35,10 @@ Progress: [██████░░░░] 67%
 | 06-frontend-ui | 4/4 | 22min | 6min |
 | 07-console-realtime | 2/2 | 11min | 6min |
 | 08-mod-support | 3/3 | 9min | 3min |
+| 09-backup-system | 1/3 | 6min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 07-01 (7min), 07-02 (4min), 08-01 (3min), 08-02 (4min), 08-03 (2min)
+- Last 5 plans: 07-02 (4min), 08-01 (3min), 08-02 (4min), 08-03 (2min), 09-01 (6min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -150,6 +151,14 @@ Recent decisions affecting current work:
 - Upload triggers server restart (state->Creating) to ensure mods loaded on fresh start; same pattern as handleRestartGameServer
 - 100MB upload limit via MaxBytesReader sufficient for v1 homelab; 30s timeout retained with comment for future extraction
 - Ready->Creating and Allocated->Creating transitions added to ValidTransitions for restart-after-upload correctness
+- Operator-driven backup over CronJob: BackupReconciler performs tar-from-pod->gzip->S3 directly, avoiding cross-namespace credential distribution
+- S3 credentials in Secret (kterodactyl-s3-credentials), S3 config in AdminConfig ConfigMap (endpoint, bucket, region, SSL)
+- Lazy S3 client initialization: created on first backup, cached on reconciler struct, avoids startup failures when S3 not configured
+- Auto-create S3 bucket on first backup via BucketExists + MakeBucket for improved admin setup experience
+- Scheduled backups via GameServer annotation watch with synthetic reconcile requests (schedule-<gsname> naming pattern)
+- BackupPath field on game manifests defaults to /data; stored as annotation on GameServer (AnnotationBackupPath)
+- minio-go/v7 for S3-compatible storage (works with MinIO, AWS S3, GCS); robfig/cron/v3 for schedule parsing
+- 30-minute context timeout for backup operations; 64MB multipart upload part size
 
 ### Pending Todos
 
@@ -172,5 +181,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 08-03-PLAN.md (Mod Frontend UI) -- Phase 08 complete
+Stopped at: Completed 09-01-PLAN.md (Backup System Backend)
 Resume file: None
