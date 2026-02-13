@@ -118,3 +118,17 @@ export interface ModFileResponse {
   name: string;
   size: number;
 }
+
+/** Matches internal/api/handlers_backups.go BackupResponse */
+export interface BackupResponse {
+  name: string;
+  gameServerName: string;
+  state: 'Pending' | 'InProgress' | 'Completed' | 'Failed';
+  s3Key?: string;
+  s3Bucket?: string;
+  size?: number;
+  startedAt?: string;
+  completedAt?: string;
+  message?: string;
+  createdAt: string;
+}
