@@ -184,10 +184,11 @@ Plans:
   2. API server exposes Prometheus metrics (request rate, latency, error rate)
   3. ServiceMonitor CRDs exist for Prometheus Operator autodiscovery
   4. All metrics use low-cardinality labels only (no user IDs or pod names)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD during planning
+- [ ] 10-01-PLAN.md — Centralized metric definitions and operator reconciler instrumentation
+- [ ] 10-02-PLAN.md — API HTTP metrics middleware, route wiring, and ServiceMonitor enablement
 
 ### Phase 11: Helm Packaging
 **Goal**: Kterodactyl installs via a single helm install command with proper defaults
@@ -233,6 +234,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Console & Real-time Features | 2/2 | ✓ Complete | 2026-02-12 |
 | 8. Mod Support | 3/3 | ✓ Complete | 2026-02-12 |
 | 9. Backup System | 3/3 | ✓ Complete | 2026-02-12 |
-| 10. Observability | 0/TBD | Not started | - |
+| 10. Observability | 0/2 | Not started | - |
 | 11. Helm Packaging | 0/TBD | Not started | - |
 | 12. Documentation | 0/TBD | Not started | - |
