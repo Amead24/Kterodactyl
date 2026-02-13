@@ -156,6 +156,14 @@ func (s *Server) handleCreateGameServer(w http.ResponseWriter, r *http.Request) 
 		gs.Annotations[util.AnnotationModPath] = m.ModPath
 	}
 
+	// Set backup path annotation from manifest (same pattern as modPath)
+	if m.BackupPath != "" {
+		if gs.Annotations == nil {
+			gs.Annotations = make(map[string]string)
+		}
+		gs.Annotations[util.AnnotationBackupPath] = m.BackupPath
+	}
+
 	ctx := r.Context()
 	if err := s.client.Create(ctx, gs); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
