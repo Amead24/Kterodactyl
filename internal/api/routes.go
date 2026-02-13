@@ -98,6 +98,19 @@ func (s *Server) routes() chi.Router {
 					r.Get("/", s.handleListMods)
 					r.Delete("/{filename}", s.handleDeleteMod)
 				})
+				// Backup management
+				r.Route("/backups", func(r chi.Router) {
+					r.Post("/", s.handleCreateBackup)
+					r.Get("/", s.handleListBackups)
+					r.Route("/{backupName}", func(r chi.Router) {
+						r.Use(auth.RequireAdmin) // Delete and restore are admin-only
+						r.Delete("/", s.handleDeleteBackup)
+						r.Post("/restore", s.handleRestoreBackup)
+					})
+				})
+				// Backup schedule (admin-only)
+				// NOTE: Restore may need timeout increase for large backups in v2.
+				r.With(auth.RequireAdmin).Put("/backup-schedule", s.handleSetBackupSchedule)
 			})
 		})
 
