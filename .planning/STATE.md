@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 7 complete — console and real-time features shipped
+**Current focus:** Phase 8 in progress — mod support infrastructure
 
 ## Current Position
 
-Phase: 7 of 12 (Console & Real-time) -- COMPLETE
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 7 Complete
-Last activity: 2026-02-12 — Completed 07-02 (Console & metrics frontend)
+Phase: 8 of 12 (Mod Support)
+Plan: 1 of 3 in current phase
+Status: Executing
+Last activity: 2026-02-13 — Completed 08-01 (Mod storage infrastructure)
 
-Progress: [██████░░░░] 58%
+Progress: [██████░░░░] 62%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22
+- Total plans completed: 23
 - Average duration: 6min
-- Total execution time: 2.04 hours
+- Total execution time: 2.09 hours
 
 **By Phase:**
 
@@ -34,9 +34,10 @@ Progress: [██████░░░░] 58%
 | 05-game-definition-framework | 2/2 | 8min | 4min |
 | 06-frontend-ui | 4/4 | 22min | 6min |
 | 07-console-realtime | 2/2 | 11min | 6min |
+| 08-mod-support | 1/3 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 06-02 (4min), 06-03 (5min), 06-04 (5min), 07-01 (7min), 07-02 (4min)
+- Last 5 plans: 06-03 (5min), 06-04 (5min), 07-01 (7min), 07-02 (4min), 08-01 (3min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -143,6 +144,9 @@ Recent decisions affecting current work:
 - Native WebSocket API used in React hook instead of react-use-websocket to avoid React 19 peer dependency conflict
 - HTML input field for console command entry instead of xterm onData for cleaner separated UX
 - Metrics unavailability shown as muted placeholder text (not error toast) since metrics-server may not be installed
+- ModPath stored as annotation on GameServer (AnnotationModPath) because controller has no access to manifest loader
+- PVC spec only set on creation (CreationTimestamp.IsZero check) since K8s PVC specs are immutable after creation
+- ModStorageSize defaults to 1Gi; ModStorageClass empty means cluster default StorageClass
 
 ### Pending Todos
 
@@ -164,6 +168,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-12
-Stopped at: Completed 07-02-PLAN.md (Console & metrics frontend -- Phase 7 complete)
+Last session: 2026-02-13
+Stopped at: Completed 08-01-PLAN.md (Mod storage infrastructure)
 Resume file: None
