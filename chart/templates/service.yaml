@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kterodactyl.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kterodactyl.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.apiService.type }}
+  ports:
+  - name: http
+    port: {{ .Values.apiService.port }}
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    {{- include "kterodactyl.selectorLabels" . | nindent 4 }}

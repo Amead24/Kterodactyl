@@ -1,0 +1,17 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kterodactyl.fullname" . }}-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kterodactyl.labels" . | nindent 4 }}
+spec:
+  ports:
+  - name: https
+    port: {{ .Values.metrics.service.port }}
+    targetPort: 8443
+    protocol: TCP
+  selector:
+    {{- include "kterodactyl.selectorLabels" . | nindent 4 }}
+{{- end }}
