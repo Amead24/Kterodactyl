@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Mod Support** - User mod uploads with persistent storage
 - [x] **Phase 9: Backup System** - S3-compatible backups and restore functionality
 - [x] **Phase 10: Observability** - Prometheus metrics for operator and servers
-- [ ] **Phase 11: Helm Packaging** - Production-ready Helm chart for installation
+- [x] **Phase 11: Helm Packaging** - Production-ready Helm chart for installation
 - [ ] **Phase 12: Documentation** - Docusaurus site with guides and reference docs
 
 ## Phase Details
@@ -202,8 +202,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Chart scaffold, values.yaml, helpers, CRDs, Deployment, and Service templates
-- [ ] 11-02-PLAN.md — RBAC templates, AdminConfig ConfigMap, conditional resources, NOTES.txt, and validation
+- [x] 11-01-PLAN.md — Chart scaffold, values.yaml, helpers, CRDs, Deployment, and Service templates
+- [x] 11-02-PLAN.md — RBAC templates, AdminConfig ConfigMap, conditional resources, NOTES.txt, and validation
 
 ### Phase 12: Documentation
 **Goal**: Users and contributors have comprehensive Docusaurus documentation
@@ -236,5 +236,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Mod Support | 3/3 | ✓ Complete | 2026-02-12 |
 | 9. Backup System | 3/3 | ✓ Complete | 2026-02-12 |
 | 10. Observability | 2/2 | ✓ Complete | 2026-02-12 |
-| 11. Helm Packaging | 0/2 | Not started | - |
+| 11. Helm Packaging | 2/2 | ✓ Complete | 2026-02-12 |
 | 12. Documentation | 0/TBD | Not started | - |
