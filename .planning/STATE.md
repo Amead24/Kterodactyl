@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 9 in progress — backup system
+**Current focus:** Phase 9 complete — backup system done
 
 ## Current Position
 
 Phase: 9 of 12 (Backup System)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-02-13 — Completed 09-02 (Backup API Endpoints)
+Plan: 3 of 3 in current phase
+Status: Phase Complete
+Last activity: 2026-02-13 — Completed 09-03 (Backup Frontend UI)
 
 Progress: [████████░░] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 27
+- Total plans completed: 28
 - Average duration: 5min
-- Total execution time: 2.34 hours
+- Total execution time: 2.39 hours
 
 **By Phase:**
 
@@ -35,10 +35,10 @@ Progress: [████████░░] 75%
 | 06-frontend-ui | 4/4 | 22min | 6min |
 | 07-console-realtime | 2/2 | 11min | 6min |
 | 08-mod-support | 3/3 | 9min | 3min |
-| 09-backup-system | 2/3 | 9min | 5min |
+| 09-backup-system | 3/3 | 12min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 08-01 (3min), 08-02 (4min), 08-03 (2min), 09-01 (6min), 09-02 (3min)
+- Last 5 plans: 08-02 (4min), 08-03 (2min), 09-01 (6min), 09-02 (3min), 09-03 (3min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -162,6 +162,8 @@ Recent decisions affecting current work:
 - Direct restore in API handler (S3->gunzip->tar-into-pod) rather than annotation-based reconciler approach; simpler for v1
 - Backup create/list endpoints available to authenticated users; delete/restore/schedule require admin role
 - Per-request S3 client in API handler for restore (not cached) since restore is infrequent
+- Backups tab always visible on server detail page (not gated by server state) so users can view backup history when server is stopped
+- Create Backup card conditionally rendered only when server is active (backup requires running pod)
 
 ### Pending Todos
 
@@ -184,5 +186,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed 09-02-PLAN.md (Backup API Endpoints)
+Stopped at: Completed 09-03-PLAN.md (Backup Frontend UI) -- Phase 09 complete
 Resume file: None
