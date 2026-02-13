@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # CRITICAL: Name must be hardcoded as "kterodactyl-admin-config".
+  # The Go operator at internal/controller/gameserver_controller.go:67
+  # hardcodes this name. Using a different name will cause the operator
+  # to silently fall back to defaults.
+  name: kterodactyl-admin-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kterodactyl.labels" . | nindent 4 }}
+data:
+  # Server count limits
+  maxServersGlobal: {{ .Values.adminConfig.limits.maxServersGlobal | quote }}
+  maxServersPerUser: {{ .Values.adminConfig.limits.maxServersPerUser | quote }}
+  # Per-user namespace quota limits
+  quotaCPURequests: {{ .Values.adminConfig.quota.cpuRequests | quote }}
+  quotaCPULimits: {{ .Values.adminConfig.quota.cpuLimits | quote }}
+  quotaMemoryRequests: {{ .Values.adminConfig.quota.memoryRequests | quote }}
+  quotaMemoryLimits: {{ .Values.adminConfig.quota.memoryLimits | quote }}
+  quotaPods: {{ .Values.adminConfig.quota.pods | quote }}
+  quotaPVCs: {{ .Values.adminConfig.quota.pvcs | quote }}
+  quotaStorage: {{ .Values.adminConfig.quota.storage | quote }}
+  # Per-container defaults (LimitRange)
+  defaultCPU: {{ .Values.adminConfig.containerDefaults.cpu | quote }}
+  defaultMemory: {{ .Values.adminConfig.containerDefaults.memory | quote }}
+  defaultRequestCPU: {{ .Values.adminConfig.containerDefaults.requestCPU | quote }}
+  defaultRequestMemory: {{ .Values.adminConfig.containerDefaults.requestMemory | quote }}
+  maxCPU: {{ .Values.adminConfig.containerDefaults.maxCPU | quote }}
+  maxMemory: {{ .Values.adminConfig.containerDefaults.maxMemory | quote }}
+  minCPU: {{ .Values.adminConfig.containerDefaults.minCPU | quote }}
+  minMemory: {{ .Values.adminConfig.containerDefaults.minMemory | quote }}
+  # Networking / DNS configuration
+  baseDomain: {{ .Values.adminConfig.networking.baseDomain | quote }}
+  gatewayName: {{ .Values.adminConfig.networking.gateway.name | quote }}
+  gatewayNamespace: {{ .Values.adminConfig.networking.gateway.namespace | default .Release.Namespace | quote }}
+  gatewayControllerNamespace: {{ .Values.adminConfig.networking.gateway.controllerNamespace | quote }}
+  # Authentication
+  jwtExpirationHours: {{ .Values.adminConfig.auth.jwtExpirationHours | quote }}
+  inviteExpirationHours: {{ .Values.adminConfig.auth.inviteExpirationHours | quote }}
+  registrationEnabled: {{ .Values.adminConfig.auth.registrationEnabled | quote }}
+  panelURL: {{ .Values.adminConfig.auth.panelURL | quote }}
+  {{- if .Values.adminConfig.smtp.host }}
+  # SMTP (password stored separately in kterodactyl-smtp-credentials Secret)
+  smtpHost: {{ .Values.adminConfig.smtp.host | quote }}
+  smtpPort: {{ .Values.adminConfig.smtp.port | quote }}
+  smtpUsername: {{ .Values.adminConfig.smtp.username | quote }}
+  smtpFrom: {{ .Values.adminConfig.smtp.from | quote }}
+  {{- end }}
+  # Mod storage
+  modStorageClass: {{ .Values.adminConfig.storage.modStorageClass | quote }}
+  modStorageSize: {{ .Values.adminConfig.storage.modStorageSize | quote }}
+  {{- if .Values.adminConfig.backup.enabled }}
+  # Backup S3 configuration (credentials stored in kterodactyl-s3-credentials Secret)
+  backupS3Endpoint: {{ .Values.adminConfig.backup.s3.endpoint | quote }}
+  backupS3Bucket: {{ .Values.adminConfig.backup.s3.bucket | quote }}
+  backupS3Region: {{ .Values.adminConfig.backup.s3.region | quote }}
+  backupS3UseSSL: {{ .Values.adminConfig.backup.s3.useSSL | quote }}
+  backupRetentionCount: {{ .Values.adminConfig.backup.retentionCount | quote }}
+  {{- end }}
