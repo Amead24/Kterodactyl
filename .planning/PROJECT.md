@@ -33,13 +33,22 @@ Admins can deploy a single Helm chart and give their users self-service game ser
 
 ### Active
 
-- [ ] Community game definition repo with PR-based contribution model
-- [ ] OIDC/SSO integration (Google, Steam, Apple via Dex/Keycloak)
-- [ ] Subuser RBAC (share server access with friends, granular permissions)
-- [ ] Web-based file manager (edit configs in browser, upload/download)
-- [ ] User can download their own backups
-- [ ] Scheduled tasks (automate restarts, commands on schedule)
-- [ ] E2E testing with Playwright for CI/CD integration
+<!-- Current milestone: v1.1 End-to-End CI/CD Test Suite -->
+
+- [ ] Kind-based test environment for reproducible local and CI testing
+- [ ] Playwright E2E tests covering happy-path user flows
+- [ ] Go API integration tests (httptest-based)
+- [ ] GitHub Actions CI pipeline running full test suite on PRs
+- [ ] Test backlog tracking untested flows for future milestones
+
+### Future
+
+- Community game definition repo with PR-based contribution model
+- OIDC/SSO integration (Google, Steam, Apple via Dex/Keycloak)
+- Subuser RBAC (share server access with friends, granular permissions)
+- Web-based file manager (edit configs in browser, upload/download)
+- User can download their own backups
+- Scheduled tasks (automate restarts, commands on schedule)
 
 ### Out of Scope
 
@@ -95,5 +104,16 @@ Admins can deploy a single Helm chart and give their users self-service game ser
 | Chi v5 router with httprate | Lightweight, composable middleware, good chi ecosystem | ✓ Good — clean middleware chains |
 | RJSF for dynamic forms | Automatic form generation from JSON Schema; no custom form code per game | ✓ Good — Draft-07 validator sufficient |
 
+## Current Milestone: v1.1 End-to-End CI/CD Test Suite
+
+**Goal:** Add a reproducible test suite (Playwright E2E + Go API integration) with a kind-based environment, then wire it into GitHub Actions CI.
+
+**Target features:**
+- Kind cluster test environment (spin up, deploy via Helm, tear down)
+- Playwright E2E tests for happy-path user flows (signup, login, create/manage/delete server, admin)
+- Go API integration tests using httptest
+- GitHub Actions pipeline running full suite on PRs
+- Comprehensive test backlog for future coverage expansion
+
 ---
-*Last updated: 2026-02-18 after v1.0 milestone*
+*Last updated: 2026-02-17 after v1.1 milestone started*
