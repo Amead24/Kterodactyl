@@ -17,7 +17,7 @@ Requirements for v1.1 End-to-End CI/CD Test Suite. Each maps to roadmap phases.
 ### Go API Tests
 
 - [ ] **GAPI-01**: Mod handler endpoints have httptest-based integration tests covering upload and list flows
-- [ ] **GAPI-02**: Backup handler endpoints have httptest-based integration tests covering create, list, and restore flows
+- [x] **GAPI-02**: Backup handler endpoints have httptest-based integration tests covering create, list, and restore flows
 - [ ] **GAPI-03**: Metrics proxy handler has httptest-based integration tests
 - [ ] **GAPI-04**: Multi-step API flow test validates the full lifecycle: register user -> create server -> get server -> delete server
 
@@ -92,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | Phase 13 | Complete |
 | INFRA-04 | Phase 13 | Complete |
 | GAPI-01 | Phase 13 | Pending |
-| GAPI-02 | Phase 13 | Pending |
+| GAPI-02 | Phase 13 | Complete |
 | GAPI-03 | Phase 13 | Pending |
 | GAPI-04 | Phase 14 | Pending |
 | PW-01 | Phase 16 | Pending |
