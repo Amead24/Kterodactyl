@@ -11,8 +11,8 @@ Requirements for v1.1 End-to-End CI/CD Test Suite. Each maps to roadmap phases.
 
 - [ ] **INFRA-01**: Developer can create a kind cluster with Helm-deployed Kterodactyl via a single Makefile target
 - [ ] **INFRA-02**: Developer can tear down the test environment via a single Makefile target
-- [ ] **INFRA-03**: Developer can run each test tier independently (make test, make test-integration, make test-e2e, make test-playwright)
-- [ ] **INFRA-04**: Each test creates and cleans up its own resources without leaking state to other tests
+- [x] **INFRA-03**: Developer can run each test tier independently (make test, make test-integration, make test-e2e, make test-playwright)
+- [x] **INFRA-04**: Each test creates and cleans up its own resources without leaking state to other tests
 
 ### Go API Tests
 
@@ -89,8 +89,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | INFRA-01 | Phase 15 | Pending |
 | INFRA-02 | Phase 15 | Pending |
-| INFRA-03 | Phase 13 | Pending |
-| INFRA-04 | Phase 13 | Pending |
+| INFRA-03 | Phase 13 | Complete |
+| INFRA-04 | Phase 13 | Complete |
 | GAPI-01 | Phase 13 | Pending |
 | GAPI-02 | Phase 13 | Pending |
 | GAPI-03 | Phase 13 | Pending |
