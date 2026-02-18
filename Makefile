@@ -63,7 +63,7 @@ test: manifests generate fmt vet setup-envtest ## Run tests.
 
 .PHONY: test-integration
 test-integration: ## Run integration tests.
-	@echo "No integration tests yet -- see Phase 14"
+	go test -tags integration ./test/integration/... -v -count=1
 
 .PHONY: test-playwright
 test-playwright: ## Run Playwright browser tests.
