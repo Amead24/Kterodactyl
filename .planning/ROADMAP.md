@@ -50,11 +50,12 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   3. Backup handler tests exercise create, list, and restore flows and pass against a fake K8s client
   4. Metrics proxy handler tests pass against a fake K8s client
   5. Each test creates resources with unique names and cleans up after itself — running the suite twice in a row produces no state leakage
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 13-01: TBD
-- [ ] 13-02: TBD
+- [ ] 13-01-PLAN.md — Fix envtest cached-client, extend test helpers, add Makefile test tier targets
+- [ ] 13-02-PLAN.md — Write mod handler and metrics proxy handler tests
+- [ ] 13-03-PLAN.md — Write backup handler tests (create, list, delete, restore, schedule)
 
 ### Phase 14: Go API Integration Tests
 **Goal**: A blackbox integration test validates the full API lifecycle end-to-end without requiring a Kubernetes cluster
