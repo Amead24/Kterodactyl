@@ -104,18 +104,6 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
-
-	// Create the operator namespace for ConfigMap tests
-	operatorNs := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: testOperatorNamespace,
-		},
-	}
-	Expect(k8sClient.Create(ctx, operatorNs)).To(Succeed())
-
 	// Create and start a manager with the GameServerReconciler and DNSReconciler
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
@@ -124,6 +112,17 @@ var _ = BeforeSuite(func() {
 		},
 	})
 	Expect(err).NotTo(HaveOccurred())
+
+	// Use the manager's cached client instead of a direct client.
+	k8sClient = mgr.GetClient()
+
+	// Create the operator namespace for ConfigMap tests
+	operatorNs := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testOperatorNamespace,
+		},
+	}
+	Expect(k8sClient.Create(ctx, operatorNs)).To(Succeed())
 
 	err = (&GameServerReconciler{
 		Client:            mgr.GetClient(),

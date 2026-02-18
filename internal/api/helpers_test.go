@@ -31,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	gamev1alpha1 "github.com/kterodactyl/kterodactyl/api/v1alpha1"
@@ -62,7 +63,7 @@ func newTestServer(t *testing.T) *testServer {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	_ = gamev1alpha1.AddToScheme(scheme)
-	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&gamev1alpha1.GameServer{}).Build()
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&gamev1alpha1.GameServer{}, &gamev1alpha1.Backup{}).Build()
 
 	// InviteService (uses fake client)
 	inviteSvc := auth.NewInviteService(fakeClient, testOperatorNS, nil, "https://panel.test")
@@ -270,4 +271,43 @@ parameterSchema:
 		t.Fatalf("failed to create test manifest loader: %v", err)
 	}
 	return loader
+}
+
+// createTestBackup creates a Backup CR in the fake K8s client with the given state.
+func createTestBackup(t *testing.T, k8sClient client.Client, name, namespace, gsName string, state gamev1alpha1.BackupState) {
+	t.Helper()
+	backup := &gamev1alpha1.Backup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				util.LabelBackupGameServer: gsName,
+				util.LabelManagedBy:        util.ManagedByValue,
+			},
+		},
+		Spec: gamev1alpha1.BackupSpec{GameServerName: gsName},
+	}
+	if err := k8sClient.Create(t.Context(), backup); err != nil {
+		t.Fatalf("failed to create test backup: %v", err)
+	}
+	if state != "" {
+		backup.Status.State = state
+		if err := k8sClient.Status().Update(t.Context(), backup); err != nil {
+			t.Fatalf("failed to set backup state: %v", err)
+		}
+	}
+}
+
+// createTestGameServerWithAnnotations creates a GameServer with a specific state and annotations.
+func createTestGameServerWithAnnotations(t *testing.T, k8sClient client.Client, name, namespace, owner, gameType string, state gamev1alpha1.GameServerState, annotations map[string]string) {
+	t.Helper()
+	createTestGameServerWithState(t, k8sClient, name, namespace, owner, gameType, state)
+	gs := &gamev1alpha1.GameServer{}
+	if err := k8sClient.Get(t.Context(), client.ObjectKey{Name: name, Namespace: namespace}, gs); err != nil {
+		t.Fatalf("failed to get gameserver for annotation update: %v", err)
+	}
+	gs.Annotations = annotations
+	if err := k8sClient.Update(t.Context(), gs); err != nil {
+		t.Fatalf("failed to update gameserver annotations: %v", err)
+	}
 }
