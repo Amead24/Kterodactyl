@@ -64,10 +64,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. `make test-integration` executes a multi-step test that registers a user, creates a server, retrieves it, and deletes it — all via real HTTP round-trips
   2. The integration test lives in `test/integration/` as a separate Go package, exercising the API as an external consumer would
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 14-01: TBD
+- [ ] 14-01-PLAN.md — Integration test with TestAPILifecycle (register, create, get, delete) via httptest.NewServer + Makefile target
 
 ### Phase 15: Kind Cluster Environment
 **Goal**: Developers can spin up a complete Kterodactyl environment in kind for local and CI testing with a single command
@@ -145,7 +145,7 @@ Phases execute in numeric order: 13 -> 14 -> 15 -> 16 -> 17 -> 18
 | 11. Helm Packaging | v1.0 | 2/2 | Complete | 2026-02-12 |
 | 12. Documentation | v1.0 | 2/2 | Complete | 2026-02-13 |
 | 13. Go Test Foundation | 3/3 | Complete    | 2026-02-18 | - |
-| 14. Go API Integration Tests | v1.1 | 0/? | Not started | - |
+| 14. Go API Integration Tests | v1.1 | 0/1 | Not started | - |
 | 15. Kind Cluster Environment | v1.1 | 0/? | Not started | - |
 | 16. Playwright E2E Tests | v1.1 | 0/? | Not started | - |
 | 17. CI Pipeline | v1.1 | 0/? | Not started | - |
