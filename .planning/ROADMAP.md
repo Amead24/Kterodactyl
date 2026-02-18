@@ -3,6 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1-12 (shipped 2026-02-13)
+- 🚧 **v1.1 End-to-End CI/CD Test Suite** — Phases 13-18 (in progress)
 
 ## Phases
 
@@ -26,7 +27,107 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 </details>
 
+### 🚧 v1.1 End-to-End CI/CD Test Suite (In Progress)
+
+**Milestone Goal:** Add a reproducible test suite (Playwright E2E + Go API integration) with a kind-based environment, then wire it into GitHub Actions CI.
+
+- [ ] **Phase 13: Go Test Foundation** - Fix envtest cached-client pattern, add handler-level httptest tests for untested endpoints, establish Makefile targets and test isolation
+- [ ] **Phase 14: Go API Integration Tests** - Multi-step blackbox lifecycle tests in test/integration/ using httptest.NewServer with real TCP round-trips
+- [ ] **Phase 15: Kind Cluster Environment** - Kind cluster lifecycle with Helm-based deployment, NodePort access, and Makefile targets for create/teardown
+- [ ] **Phase 16: Playwright E2E Tests** - Browser tests against live app in kind covering auth, server CRUD, and admin flows
+- [ ] **Phase 17: CI Pipeline** - Unified GitHub Actions workflow running all test tiers with job dependencies, failure artifacts, and cleanup
+- [ ] **Phase 18: Coverage and Test Backlog** - Go coverage reporting in CI and test backlog documenting untested features for future milestones
+
+## Phase Details
+
+### Phase 13: Go Test Foundation
+**Goal**: Developers have a reliable, fast Go test suite covering all API handlers with proper isolation and selective execution
+**Depends on**: Nothing (first phase of v1.1)
+**Requirements**: INFRA-03, INFRA-04, GAPI-01, GAPI-02, GAPI-03
+**Success Criteria** (what must be TRUE):
+  1. `make test` runs all Go unit tests and passes; `make test-integration` runs integration tests separately
+  2. Mod handler tests exercise upload and list flows and pass against a fake K8s client
+  3. Backup handler tests exercise create, list, and restore flows and pass against a fake K8s client
+  4. Metrics proxy handler tests pass against a fake K8s client
+  5. Each test creates resources with unique names and cleans up after itself — running the suite twice in a row produces no state leakage
+**Plans**: TBD
+
+Plans:
+- [ ] 13-01: TBD
+- [ ] 13-02: TBD
+
+### Phase 14: Go API Integration Tests
+**Goal**: A blackbox integration test validates the full API lifecycle end-to-end without requiring a Kubernetes cluster
+**Depends on**: Phase 13
+**Requirements**: GAPI-04
+**Success Criteria** (what must be TRUE):
+  1. `make test-integration` executes a multi-step test that registers a user, creates a server, retrieves it, and deletes it — all via real HTTP round-trips
+  2. The integration test lives in `test/integration/` as a separate Go package, exercising the API as an external consumer would
+**Plans**: TBD
+
+Plans:
+- [ ] 14-01: TBD
+
+### Phase 15: Kind Cluster Environment
+**Goal**: Developers can spin up a complete Kterodactyl environment in kind for local and CI testing with a single command
+**Depends on**: Phase 13
+**Requirements**: INFRA-01, INFRA-02
+**Success Criteria** (what must be TRUE):
+  1. `make test-e2e-setup` (or equivalent target) creates a kind cluster, builds and loads the operator image, installs via Helm, and waits for readiness — app is accessible at localhost:8080
+  2. `make test-e2e-teardown` (or equivalent target) deletes the kind cluster and all associated resources cleanly
+  3. A developer can tear down and recreate the environment repeatedly without manual cleanup steps
+**Plans**: TBD
+
+Plans:
+- [ ] 15-01: TBD
+
+### Phase 16: Playwright E2E Tests
+**Goal**: Browser-based tests verify core user journeys against a live Kterodactyl deployment in kind
+**Depends on**: Phase 15
+**Requirements**: PW-01, PW-02, PW-03, PW-04, PW-05
+**Success Criteria** (what must be TRUE):
+  1. `make test-playwright` runs the Playwright suite from the `e2e/` directory against the kind-deployed app
+  2. Auth fixtures provide pre-authenticated browser contexts for admin and regular-user roles without per-test login
+  3. A test signs up a new user, logs in, and verifies the dashboard loads
+  4. A test creates a game server and verifies it appears in the server list
+  5. A test deletes a game server and verifies it is removed from the server list
+**Plans**: TBD
+
+Plans:
+- [ ] 16-01: TBD
+- [ ] 16-02: TBD
+
+### Phase 17: CI Pipeline
+**Goal**: Every pull request automatically runs the full test suite with clear pass/fail status and failure diagnostics
+**Depends on**: Phase 14, Phase 16
+**Requirements**: CI-01, CI-02, CI-03, CI-04
+**Success Criteria** (what must be TRUE):
+  1. A unified `.github/workflows/ci.yml` runs lint, unit tests, integration tests, E2E tests, and Playwright tests in dependency order — a lint failure skips downstream jobs
+  2. When Playwright tests fail, traces, screenshots, and Kubernetes pod logs are uploaded as downloadable GitHub Actions artifacts
+  3. CI performs disk cleanup before kind cluster creation to prevent runner disk exhaustion
+  4. The kind cluster is always deleted after E2E tests complete, even when tests fail
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01: TBD
+
+### Phase 18: Coverage and Test Backlog
+**Goal**: Test coverage is measurable and gaps are explicitly documented for future milestones
+**Depends on**: Phase 17
+**Requirements**: COV-01, COV-02
+**Success Criteria** (what must be TRUE):
+  1. CI output includes a Go test coverage percentage and the coverage report is accessible as a CI artifact or log output
+  2. A `TEST_BACKLOG.md` document lists all untested features (WebSocket console, visual regression, mod E2E, backup E2E, admin E2E, multi-browser) with priority rankings for future milestones
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 13 -> 14 -> 15 -> 16 -> 17 -> 18
+(Phases 14 and 15 can execute in parallel — 14 depends on 13 only, 15 depends on 13 only)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -42,3 +143,9 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 10. Observability | v1.0 | 2/2 | Complete | 2026-02-12 |
 | 11. Helm Packaging | v1.0 | 2/2 | Complete | 2026-02-12 |
 | 12. Documentation | v1.0 | 2/2 | Complete | 2026-02-13 |
+| 13. Go Test Foundation | v1.1 | 0/? | Not started | - |
+| 14. Go API Integration Tests | v1.1 | 0/? | Not started | - |
+| 15. Kind Cluster Environment | v1.1 | 0/? | Not started | - |
+| 16. Playwright E2E Tests | v1.1 | 0/? | Not started | - |
+| 17. CI Pipeline | v1.1 | 0/? | Not started | - |
+| 18. Coverage and Test Backlog | v1.1 | 0/? | Not started | - |

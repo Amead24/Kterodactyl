@@ -87,31 +87,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| GAPI-01 | — | Pending |
-| GAPI-02 | — | Pending |
-| GAPI-03 | — | Pending |
-| GAPI-04 | — | Pending |
-| PW-01 | — | Pending |
-| PW-02 | — | Pending |
-| PW-03 | — | Pending |
-| PW-04 | — | Pending |
-| PW-05 | — | Pending |
-| CI-01 | — | Pending |
-| CI-02 | — | Pending |
-| CI-03 | — | Pending |
-| CI-04 | — | Pending |
-| COV-01 | — | Pending |
-| COV-02 | — | Pending |
+| INFRA-01 | Phase 15 | Pending |
+| INFRA-02 | Phase 15 | Pending |
+| INFRA-03 | Phase 13 | Pending |
+| INFRA-04 | Phase 13 | Pending |
+| GAPI-01 | Phase 13 | Pending |
+| GAPI-02 | Phase 13 | Pending |
+| GAPI-03 | Phase 13 | Pending |
+| GAPI-04 | Phase 14 | Pending |
+| PW-01 | Phase 16 | Pending |
+| PW-02 | Phase 16 | Pending |
+| PW-03 | Phase 16 | Pending |
+| PW-04 | Phase 16 | Pending |
+| PW-05 | Phase 16 | Pending |
+| CI-01 | Phase 17 | Pending |
+| CI-02 | Phase 17 | Pending |
+| CI-03 | Phase 17 | Pending |
+| CI-04 | Phase 17 | Pending |
+| COV-01 | Phase 18 | Pending |
+| COV-02 | Phase 18 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-18*
-*Last updated: 2026-02-18 after initial definition*
+*Last updated: 2026-02-18 after roadmap creation*
