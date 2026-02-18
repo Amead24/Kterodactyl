@@ -2,23 +2,22 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-09)
+See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** Phase 12 complete — All documentation written
+**Current focus:** v1.0 shipped — planning next milestone
 
 ## Current Position
 
-Phase: 12 of 12 (Documentation)
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-02-13 — Completed 12-02 (Usage, Contributing, Reference docs and README)
+Phase: v1.0 complete (12 phases, 34 plans, 74 tasks)
+Status: Milestone shipped
+Last activity: 2026-02-18 — Completed v1.0 MVP milestone archival
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% (v1.0)
 
 ## Performance Metrics
 
-**Velocity:**
+**v1.0 Velocity:**
 - Total plans completed: 34
 - Average duration: 5min
 - Total execution time: 2.76 hours
@@ -40,173 +39,28 @@ Progress: [██████████] 100%
 | 11-helm-packaging | 2/2 | 5min | 3min |
 | 12-documentation | 2/2 | 14min | 7min |
 
-**Recent Trend:**
-- Last 5 plans: 10-02 (1min), 11-01 (2min), 11-02 (3min), 12-01 (7min), 12-02 (7min)
-- Trend: Stable (12-01/12-02 higher due to content authoring)
-
-*Updated after each plan completion*
-
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Research phase completed: Identified 10 critical pitfalls, recommended 8-phase structure (expanded to 12 for comprehensive depth)
-- Phase 1 must establish CRD versioning strategy and multi-tenant isolation foundation (expensive to retrofit later)
-- Gateway API (HTTPRoute) selected over Ingress due to March 2026 retirement timeline
-- GameServerState type defined in gameserver_types.go; constants and transitions in gameserver_lifecycle.go
-- Kubebuilder v4.11.1 scaffolding conventions used (api/, internal/, cmd/) -- not custom pkg/ layout
-- v1alpha1 marked as storageversion for future CRD versioning safety
-- Extended ValidTransitions to include Ready->Error, Allocated->Error, Starting->Creating for Pod disappearance handling
-- Pod RestartPolicy=Never; operator manages lifecycle, not kubelet
-- LeaderElectionID set to kterodactyl-operator.kterodactyl.io
-- AnnotationChangedPredicate used in event filter for allocation annotation detection
-- AdminConfig loaded per reconciliation from ConfigMap (no operator restart needed for config changes)
-- Operator works without admin ConfigMap by using sensible defaults
-- NetworkPolicy allows DNS via kube-system and internet minus private ranges
-- OperatorNamespace configurable via OPERATOR_NAMESPACE env var (default: kterodactyl-system)
-- envtest cannot test Starting->Ready (no kubelet); kind cluster CI covers full lifecycle
-- Manager-based test setup for true integration testing (watches, event filters, requeue all tested)
-- Unique test namespaces per test case to prevent cross-test interference
-- DNS name pattern: game.username.baseDomain (e.g., minecraft.alice.example.com)
-- BaseDomain empty string means DNS routing is disabled (opt-in)
-- Gateway API scheme registered in init() alongside existing CRD scheme
-- Networking constants in separate networking.go file, not in labels.go
-- DNS controller uses same patterns as GameServerReconciler: re-fetch before status updates, CreateOrUpdate, owner references
-- Service and HTTPRoute share the GameServer name for consistent naming
-- Cleanup logic explicitly deletes Service/HTTPRoute and clears status when leaving Ready/Allocated
-- updateConnectionInfo skips status write when address unchanged to reduce API churn
-- Dual-controller pattern: two reconcilers in same manager binary watching same CRD type with Named() disambiguation
-- DNS controller event filter: removed GenerationChangedPredicate, uses default (all changes) to react to status.state transitions
-- Gateway API CRDs loaded from GOMODCACHE for envtest; not vendored
-- Manual status patching pattern established for envtest: Status().Update() to simulate kubelet-driven transitions
-- User type defined in auth.go with full field set; jwt.go references this type (no duplication)
-- Username stored in Secret labels for efficient label-selector queries (not just in data)
-- AdminConfig extended with auth fields (JWT/invite expiration, SMTP, registration) in gameserver_controller.go
-- Kubernetes Secret user record pattern: Secret named user-<username> with kterodactyl.io labels for queryability
-- Argon2id with OWASP params (time=1, memory=64MB, threads=4) in PHC string format for password hashing
-- HMAC-SHA256 (HS256) JWT signing -- single service signs and verifies, simpler than asymmetric for v1
-- 2-hour refresh threshold for ShouldRefresh -- middleware issues fresh token when expiry within 2 hours
-- EnsureSigningKey as static function -- allows bootstrapping key before constructing JWTService
-- SMTPPassword excluded from AdminConfig ConfigMap -- stored in separate Secret to prevent credential exposure
-- Token ID generated with crypto/rand (8 bytes hex) for potential revocation tracking
-- RequireAdmin is a standalone function for cleaner HTTP middleware chaining
-- Error responses use JSON-like format for consistency with Phase 4 API
-- Invite Secret named invite-<first-12-chars-of-token> for uniqueness with readability
-- SMTP failure on invite creation logs but does not fail invite -- link still returned to admin
-- go-mail with TLSOpportunistic and SMTPAuthAutoDiscover for maximum SMTP server compatibility
-- Standard Go testing for auth package (not Ginkgo) -- standalone library tests without K8s envtest
-- Raw intermediate types (rawGameManifest, rawPort, rawResources) for YAML deserialization of K8s types that only have JSON tags
-- Chi v5 router with httprate rate limiting and CORS at top-level for proper preflight handling
-- Per-request AdminConfig loading via controller.LoadAdminConfig to avoid ConfigMap staleness
-- 13 placeholder handler stubs (501) allow router to compile while Plans 02/03 implement handlers
-- Invite email comes from invite Secret, not request body -- invite is for a specific email address
-- GameServerResponse wraps K8s CRD fields into clean API types -- raw K8s objects never exposed to API consumers
-- Only spec.Parameters updatable after creation -- GameType, Image, Ports, Resources immutable from manifest
-- Admin self-deletion prevented to avoid orphaned admin-less clusters
-- All 16 API endpoints now have real handler implementations (handlers_auth, handlers_gameserver, handlers_games, handlers_admin)
-- UserResponse struct explicitly excludes PasswordHash -- never expose credentials in API responses
-- Admin invite handler loads AdminConfig per-request for InviteExpirationHours (defaults to 72h without ConfigMap)
-- GameResponse converts corev1.Protocol to plain string for JSON cleanliness
-- Shared test helpers consolidated into helpers_test.go with testServer wrapper pattern
-- Direct K8s client (client.New) for bootstrap operations before manager starts; cached client (mgr.GetClient()) for runtime
-- manager.Server Runnable wraps API server's *http.Server for lifecycle management alongside controllers
-- SMTP nil at startup -- invites return link in response until SMTP is configured
-- API server bound to configurable --api-bind-address flag (default :8080)
-- Directory-per-game structure: games/<name>/ with manifest.yaml + Dockerfile (replacing flat YAML files)
-- JSON Schema (Draft 2020-12) embedded in YAML manifests via parameterSchema field for parameter validation and frontend form generation
-- Schema URL uses simple path (games/<name>/parameterSchema.json) not JSON pointer fragment -- jsonschema v6 resolves fragments as JSON pointers
-- All parameter schema properties use type: string because env vars are always strings -- constraints via enum, pattern, const, maxLength
-- Schemas compiled once during LoadFromDirectory, stored as compiledSchema on GameManifest -- no per-request compilation
-- santhosh-tekuri/jsonschema/v6 chosen over alternatives for Draft 2020-12 support and maturity
-- Update path skips schema validation when manifest not found -- defensive design for removed game definitions
-- ParameterSchema passed through as raw map[string]interface{} to API response -- no transformation, direct react-jsonschema-form consumption
-- Operator Dockerfile copies games/ directory into final image at /games for manifest loader
-- Tailwind CSS v4 with @tailwindcss/vite plugin for frontend (shadcn auto-detected)
-- ValidTransitions expanded: Shutdown->Creating and Error->Creating for lifecycle API restart support
-- JWT stored in Zustand memory only (no localStorage) -- token lost on page refresh per security best practices
-- Status().Update() pattern for lifecycle handlers -- separates spec from status updates in K8s
-- WithStatusSubresource required for fake client when testing status sub-resource updates
-- Sidebar nav component named sidebar-nav.tsx to avoid collision with shadcn ui/sidebar.tsx primitive
-- shadcn sonner component simplified to remove next-themes dependency (not applicable in Vite SPA)
-- shadcn toast component deprecated -- sonner used directly for toast notifications
-- IChangeEvent imported from @rjsf/core (not @rjsf/utils) for RJSF form submit handler typing
-- Draft-07 default validator used for RJSF -- game schemas only use draft-07 features (enum, const, pattern, maxLength, default)
-- Custom ServerStatusBadge with Tailwind color classes for precise 6-state color mapping
-- SPA catch-all via r.NotFound(serveSPA().ServeHTTP) -- API routes always take priority over SPA fallback
-- go:embed all:frontend in internal/api/spa.go -- assets copied to embed location by build pipeline
-- Placeholder index.html force-tracked via git add -f -- go:embed works on fresh clones without frontend build
-- Multi-stage Dockerfile: node:22-alpine frontend stage -> golang builder with COPY --from=frontend -> distroless production
-- AlertDialog for delete confirmation in admin user management -- consistent with shadcn component library
-- gorilla/websocket v1.5.4-pre used (k8s.io/client-go@v0.35 transitively requires this version over v1.5.3)
-- WebSocket console route outside timeout middleware group to prevent 30s connection kills
-- Write channel pattern (chan []byte, 256 buffer) for concurrency-safe WebSocket writes
-- JWT query param auth for WebSocket (browser WebSocket API cannot set Authorization headers during upgrade)
-- Metrics API errors return 503 Service Unavailable for graceful degradation when metrics-server unavailable
-- Native WebSocket API used in React hook instead of react-use-websocket to avoid React 19 peer dependency conflict
-- HTML input field for console command entry instead of xterm onData for cleaner separated UX
-- Metrics unavailability shown as muted placeholder text (not error toast) since metrics-server may not be installed
-- ModPath stored as annotation on GameServer (AnnotationModPath) because controller has no access to manifest loader
-- PVC spec only set on creation (CreationTimestamp.IsZero check) since K8s PVC specs are immutable after creation
-- ModStorageSize defaults to 1Gi; ModStorageClass empty means cluster default StorageClass
-- Upload triggers server restart (state->Creating) to ensure mods loaded on fresh start; same pattern as handleRestartGameServer
-- 100MB upload limit via MaxBytesReader sufficient for v1 homelab; 30s timeout retained with comment for future extraction
-- Ready->Creating and Allocated->Creating transitions added to ValidTransitions for restart-after-upload correctness
-- Operator-driven backup over CronJob: BackupReconciler performs tar-from-pod->gzip->S3 directly, avoiding cross-namespace credential distribution
-- S3 credentials in Secret (kterodactyl-s3-credentials), S3 config in AdminConfig ConfigMap (endpoint, bucket, region, SSL)
-- Lazy S3 client initialization: created on first backup, cached on reconciler struct, avoids startup failures when S3 not configured
-- Auto-create S3 bucket on first backup via BucketExists + MakeBucket for improved admin setup experience
-- Scheduled backups via GameServer annotation watch with synthetic reconcile requests (schedule-<gsname> naming pattern)
-- BackupPath field on game manifests defaults to /data; stored as annotation on GameServer (AnnotationBackupPath)
-- minio-go/v7 for S3-compatible storage (works with MinIO, AWS S3, GCS); robfig/cron/v3 for schedule parsing
-- 30-minute context timeout for backup operations; 64MB multipart upload part size
-- Direct restore in API handler (S3->gunzip->tar-into-pod) rather than annotation-based reconciler approach; simpler for v1
-- Backup create/list endpoints available to authenticated users; delete/restore/schedule require admin role
-- Per-request S3 client in API handler for restore (not cached) since restore is infrequent
-- Backups tab always visible on server detail page (not gated by server state) so users can view backup history when server is stopped
-- Create Backup card conditionally rendered only when server is active (backup requires running pod)
-- All 5 Prometheus metrics (operator + API) defined in single internal/metrics/metrics.go to prevent duplicate registration panics
-- Metrics registered with controller-runtime metrics.Registry via init() (not default prometheus registry)
-- Reconcile method restructured to capture result/err for gauge update after state dispatch
-- metricsMiddleware placed first in /api/v1 route group to capture full request duration including auth and timeout
-- statusRecorder intentionally simple (no Flusher/Hijacker/Pusher) since WebSocket route is outside the REST group
-- Chi route patterns used as metric labels for low cardinality (not raw URL paths)
-- Hand-crafted Helm chart at chart/ over helmify/Kubebuilder helm plugin for full control over values.yaml schema
-- CRDs in chart/crds/ as plain YAML (no templating per Helm convention; auto install ordering)
-- API Service added in chart (not in kustomize) to expose port 8080 for user access
-- OPERATOR_NAMESPACE in Deployment via downward API fieldRef (always matches deployment namespace)
-- AdminConfig ConfigMap name hardcoded as kterodactyl-admin-config (not fullname-prefixed) to match Go operator hardcoded lookup
-- SMTP/backup ConfigMap fields conditionally rendered only when respective features are enabled in values.yaml
-- gatewayNamespace defaults to Release.Namespace when not explicitly set
-- Docusaurus v3 docs-site/ directory alongside main project (not inside existing docs/)
-- Placeholder docs for pending sidebar categories to enable clean builds
-- Manual Helm values reference table (no helm-docs tool) for v1 simplicity
-- 4 Mermaid diagrams in architecture.md: component diagram, GameServer states, Backup states, auth sequence
-- API reference organized by category with auth and rate limit columns per endpoint table
-- README.md replaced with concise project overview (~70 lines) linking to docs-site
+Key decisions logged in PROJECT.md Key Decisions table (14 decisions, all marked ✓ Good after v1.0).
 
 ### Pending Todos
 
-- ~~**TODO-01** (Phase 12): Write documentation explaining how Kterodactyl differs from Agones and Pterodactyl~~ RESOLVED in 12-01: overview.md includes comparison tables for both Agones and Pterodactyl
 - **TODO-02** (Testing): Create a Playwright script for CI/CD integration testing of features
 
 ### Blockers/Concerns
 
-**Phase 1:**
-- ~~CRD API design decisions (versioning strategy, state machine states) must be made early~~ RESOLVED in 01-01: v1alpha1 storageversion, 6-state machine
-- Controller concurrency and rate limiting settings need production-ready configuration from start
+None active — v1.0 shipped successfully.
 
-**Phase 2:**
-- Port allocation strategy (dynamic pool vs fixed ranges) needs design - critical pitfall identified in research
-- ExternalDNS + cert-manager integration may need research during planning for split-horizon DNS patterns
-
-**Phase 4:**
-- ~~Authentication mechanism decision needed (JWT only vs OIDC integration scope for v1)~~ RESOLVED in 04-01: JWT-only for v1 (HS256 via Phase 3 JWTService)
+**Tech debt from v1.0 (non-blocking):**
+- DNS requires human testing with live Gateway API controller and ExternalDNS
+- Relative path `"games/"` in cmd/main.go relies on container WORKDIR
+- handleUploadMod and handleRestoreBackup bypass IsValidTransition guard
+- Duplicate s3CredentialsSecretName constant in controller and API handler
 
 ## Session Continuity
 
-Last session: 2026-02-13
-Stopped at: Completed 12-02-PLAN.md (Usage, Contributing, Reference docs and README) -- ALL PHASES COMPLETE
+Last session: 2026-02-18
+Stopped at: v1.0 milestone archived — ready for `/gsd:new-milestone`
 Resume file: None

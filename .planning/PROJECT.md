@@ -4,6 +4,8 @@
 
 A Kubernetes-native game server management panel — a modern, open-source alternative to Pterodactyl that replaces Wings, Docker, and Postgres with CRDs, a custom operator, and k8s-native primitives. Admins install via Helm chart, users pick a game, configure it, and get a running server at `<game>.<username>.domain.com`. Community-contributed game definitions make adding new games as simple as opening a PR.
 
+Shipped as a single Go binary with embedded React SPA, installing via `helm install` with 50+ configurable values.
+
 ## Core Value
 
 Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes — no separate daemon, no Docker-in-Docker, no external database required.
@@ -12,26 +14,32 @@ Admins can deploy a single Helm chart and give their users self-service game ser
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Custom k8s operator (Go) with GameServer CRD that reconciles game server instances — v1.0
+- ✓ Declarative game definition framework — folder-per-game with Dockerfile, parameter manifest, and metadata — v1.0
+- ✓ Go REST API serving the frontend and managing operator interactions — v1.0
+- ✓ React web UI where users browse games, configure parameters, launch servers, and get connection info — v1.0
+- ✓ Dynamic UI driven by game parameter manifests (RJSF forms from JSON Schema) — v1.0
+- ✓ User flow: pick game → configure → launch → wait → get connection info — v1.0
+- ✓ DNS pattern: `<game>.<username>.domain.com` via Gateway API HTTPRoute — v1.0
+- ✓ Auth: admin invite + basic signup with JWT sessions — v1.0
+- ✓ Global resource limits (admin-configured max servers, CPU/RAM per server) — v1.0
+- ✓ Prometheus metrics exposed for operator and API server — v1.0
+- ✓ Backup system: on-demand + scheduled, stored in S3-compatible storage — v1.0
+- ✓ Helm chart with opinionated defaults, configurable for Gateway API, storage classes, domain — v1.0
+- ✓ Docusaurus documentation site with installation, usage, and reference — v1.0
+- ✓ Mod support: users upload mods mounted via PersistentVolumes, server restarts on apply — v1.0
+- ✓ WebSocket console with real-time log streaming and command execution — v1.0
+- ✓ Namespace isolation with ResourceQuotas, LimitRanges, and NetworkPolicies — v1.0
 
 ### Active
 
-- [ ] Custom k8s operator (Go) with GameServer CRD that reconciles game server instances
-- [ ] Declarative game definition framework — folder-per-game with Dockerfile, parameter manifest, and metadata
 - [ ] Community game definition repo with PR-based contribution model
-- [ ] Go REST API serving the frontend and managing operator interactions
-- [ ] React/Next.js web UI where users browse games, configure parameters, launch servers, and get connection info
-- [ ] Dynamic UI driven by game parameter manifests (ban lists, admin commands, world settings, etc.)
-- [ ] User flow: pick game → configure → launch → wait → get connection info
-- [ ] DNS pattern: `<game>.<username>.domain.com` via Ingress or HTTPRoute
-- [ ] Auth: admin invite + basic signup for v1, extensible to OIDC/social login
-- [ ] Global resource limits (admin-configured max servers, CPU/RAM per server)
-- [ ] Prometheus metrics exposed for all operator and server activity
-- [ ] Backup system: on-demand + scheduled, stored in S3-compatible storage
-- [ ] Helm chart with opinionated defaults, customizable for Ingress vs HTTPRoute, auth backends, storage classes, etc.
-- [ ] Docusaurus documentation site as first-class citizen, generated/linked from codebase
-- [ ] Mod support: users upload mods mounted via PersistentVolumes, server restarts on apply
-- [ ] User log viewing and self-service backup downloads (v2)
+- [ ] OIDC/SSO integration (Google, Steam, Apple via Dex/Keycloak)
+- [ ] Subuser RBAC (share server access with friends, granular permissions)
+- [ ] Web-based file manager (edit configs in browser, upload/download)
+- [ ] User can download their own backups
+- [ ] Scheduled tasks (automate restarts, commands on schedule)
+- [ ] E2E testing with Playwright for CI/CD integration
 
 ### Out of Scope
 
@@ -40,24 +48,29 @@ Admins can deploy a single Helm chart and give their users self-service game ser
 - Real-time voice/chat between players — game servers handle this themselves
 - Mobile app — web UI only for v1
 - Running game servers outside Kubernetes — the entire value prop is k8s-native
+- Multi-region orchestration — K8s federation complexity; run multiple panels instead
+- Built-in mod installer UI — game-specific; mount mod directories instead
+- Per-user resource quotas — global limits sufficient for v1; revisit at scale
 
 ## Context
 
-**Pterodactyl's limitations:** Pterodactyl relies on Wings (a custom daemon), Docker directly, and Postgres. This means operators run a separate control plane outside k8s, can't leverage k8s scheduling/scaling/monitoring, and have to manage Wings alongside their cluster. Kterodactyl eliminates this by making everything a k8s resource.
+**Shipped v1.0** with 28,299 LOC (12,043 Go + 16,256 TypeScript/TSX) across 12 phases in 4 days.
+**Tech stack:** Go (controller-runtime, chi v5), React (Vite, Tailwind, shadcn, RJSF), Docusaurus v3.
+**Architecture:** Single binary — operator + API + embedded SPA. Dual controllers (GameServer + DNS) in one manager.
+**Game support:** Minecraft Java Edition ships as reference game; extensible via folder-per-game manifests with JSON Schema parameter validation.
+**Infrastructure:** Talos K8s cluster, Cilium CNI, Cloudflare Tunnel for domain routing.
 
-**Target users:** Two key personas:
-1. **Homelab admins** — friends who want to install Kterodactyl and invite a handful of friends to host game servers (2-10 users, 5-20 servers)
-2. **Service operators** — running Kterodactyl as a revenue-generating service with potentially hundreds of users and servers
-
-**Game server hosting model:** Most dedicated game servers require owning the game on Steam (via SteamCMD). Some admins may only host 2-3 games, others may host dozens. The declarative game framework must support both — admins include only the game definitions they want.
-
-**Open source first:** This is a community project. The Helm chart, game definitions, documentation, and all code are open source. Extensibility and customization are not afterthoughts.
+**Known tech debt (from v1.0 audit):**
+- DNS requires human testing with live Gateway API controller and ExternalDNS
+- Relative path `"games/"` in cmd/main.go relies on container WORKDIR
+- handleUploadMod and handleRestoreBackup bypass IsValidTransition guard
+- Duplicate s3CredentialsSecretName constant across controller and API handler
 
 ## Constraints
 
 - **Operator language**: Go — required for first-class k8s controller-runtime support
 - **API language**: Go — unified backend language, shares types with operator
-- **Frontend**: React/Next.js — modern, large ecosystem, good for dynamic UIs
+- **Frontend**: React (Vite) — modern, large ecosystem, good for dynamic UIs
 - **Documentation**: Docusaurus — React-based, versioned, standard for OSS projects
 - **Kubernetes minimum**: 1.26+ (VolumeSnapshot API, HTTPRoute support)
 - **Storage**: Requires a CSI driver that supports VolumeSnapshots for backup functionality
@@ -67,14 +80,20 @@ Admins can deploy a single Helm chart and give their users self-service game ser
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| K8s operator with CRD over standalone daemon | Leverages k8s scheduling, monitoring, RBAC natively; no separate process to manage | — Pending |
-| Go for operator + API | Controller-runtime is Go-native; unified backend language reduces complexity | — Pending |
-| Folder-per-game declarative framework | Makes contributing games simple (Dockerfile + manifest); admins pick which games to include | — Pending |
-| Community game defs via PR to main repo | Centralizes quality control; builds ecosystem; game defs are reviewed before merge | — Pending |
-| Global resource limits (not per-user quotas) for v1 | Simpler to implement; sufficient for homelab and small service use cases | — Pending |
-| Admin invite + basic signup for v1 auth | Covers both personas without OIDC complexity; extensible later via Dex/Keycloak | — Pending |
-| S3-compatible backup storage | Works with MinIO (homelab) and AWS S3/GCS (cloud); universal interface | — Pending |
-| Helm chart as primary install method | Standard k8s distribution; supports the customization matrix (ingress, auth, storage) | — Pending |
+| K8s operator with CRD over standalone daemon | Leverages k8s scheduling, monitoring, RBAC natively; no separate process to manage | ✓ Good — 6-state lifecycle works well |
+| Go for operator + API | Controller-runtime is Go-native; unified backend language reduces complexity | ✓ Good — single binary with embedded SPA |
+| Folder-per-game declarative framework | Makes contributing games simple (Dockerfile + manifest); admins pick which games to include | ✓ Good — JSON Schema enables dynamic forms |
+| Gateway API (HTTPRoute) over Ingress | Ingress retirement timeline March 2026; future-proof | ✓ Good — cleaner routing model |
+| Global resource limits (not per-user quotas) for v1 | Simpler to implement; sufficient for homelab and small service use cases | ✓ Good — adequate for target audience |
+| Admin invite + basic signup for v1 auth | Covers both personas without OIDC complexity; extensible later via Dex/Keycloak | ✓ Good — Argon2id + JWT proven secure |
+| S3-compatible backup storage | Works with MinIO (homelab) and AWS S3/GCS (cloud); universal interface | ✓ Good — minio-go works across providers |
+| Helm chart as primary install method | Standard k8s distribution; supports the customization matrix | ✓ Good — 50+ configurable values |
+| Vite + React over Next.js for frontend | SPA embedded in Go binary; no SSR needed; simpler build pipeline | ✓ Good — go:embed integration clean |
+| Pod RestartPolicy=Never; operator manages lifecycle | Full control over server state machine; kubelet doesn't interfere | ✓ Good — predictable state transitions |
+| Dual-controller pattern in single manager | DNS controller watches same CRD; Named() disambiguation | ✓ Good — no inter-process communication |
+| Operator-driven backup over CronJob | Avoids cross-namespace credential distribution; simpler security model | ✓ Good — annotation-based scheduling works |
+| Chi v5 router with httprate | Lightweight, composable middleware, good chi ecosystem | ✓ Good — clean middleware chains |
+| RJSF for dynamic forms | Automatic form generation from JSON Schema; no custom form code per game | ✓ Good — Draft-07 validator sufficient |
 
 ---
-*Last updated: 2026-02-09 after initialization*
+*Last updated: 2026-02-18 after v1.0 milestone*

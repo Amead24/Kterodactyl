@@ -72,7 +72,7 @@ Each task was committed atomically:
 1. **Task 1: Wire API server into controller-runtime manager** - `bcc9ab7` (feat)
 2. **Task 2: Full build and test verification** - verification only, no code changes
 
-**Plan metadata:** (pending) (docs: complete plan)
+**Plan metadata:** `3c56c71` (docs: complete plan)
 
 ## Files Created/Modified
 - `cmd/main.go` - Added imports for api/auth/manifest/client/manager packages, --api-bind-address flag, direct client bootstrap, auth service initialization, manifest loading, API server registration as manager.Server Runnable
