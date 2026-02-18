@@ -1,303 +1,391 @@
-# Stack Research
+# Technology Stack: v1.1 Testing & CI
 
-**Domain:** Kubernetes-native game server management platform
-**Researched:** 2026-02-09
-**Confidence:** HIGH
+**Project:** Kterodactyl
+**Milestone:** v1.1 Testing & CI
+**Researched:** 2026-02-17
+**Overall confidence:** HIGH
 
-## Recommended Stack
+## Context
 
-### Core Technologies
+v1.0 shipped with zero automated tests. This stack research covers ONLY the additions needed for:
+1. Playwright E2E tests (browser-based happy path flows)
+2. Go API integration tests (httptest-based, already partially implemented)
+3. kind cluster test environment (already scaffolded by Kubebuilder)
+4. GitHub Actions CI pipeline (skeleton workflows already exist)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **Kubebuilder** | v4.x | Kubernetes operator scaffolding & development | Industry standard from kubernetes-sigs, provides robust scaffolding with controller-runtime integration, excellent community support, and natural integration with Kubernetes ecosystem. In 2025-2026, Kubebuilder v4 is the mature choice for Go-based operators. |
-| **controller-runtime** | v0.23.x | Core reconciliation engine for operators | Foundation library used by both Kubebuilder and Operator SDK. Provides battle-tested reconciliation patterns, client libraries, and best practices. Direct dependency of Kubebuilder but understanding it is critical for production operators. |
-| **Gin** | v1.10.0+ | Go REST API framework | Most mature Go web framework with 81k+ GitHub stars, 48% market share among Go developers. Martini-like API with excellent performance (34k req/s), extensive middleware ecosystem, and gentler learning curve than alternatives. Best balance of maturity, performance, and developer experience. |
-| **Next.js** | v15.x | React framework for admin UI | Production-ready with React 19 support, built-in server components, optimized bundling via Turbopack, and excellent TypeScript integration. Next.js 15 provides modern routing (App Router), streaming, and performance improvements essential for dynamic admin UIs. |
-| **React** | v19.x | Frontend UI library | Latest stable release with improved compiler (auto-memoization), new hooks (useActionState, useFormStatus, useOptimistic), and better form handling. React 19 + Next.js 15 is the 2025-2026 standard for production-grade admin panels. |
-| **TypeScript** | v5.x | Type-safe JavaScript | Industry standard for React applications, enforces type safety, reduces runtime errors, improves maintainability. Strict mode with explicit typing is essential for scalable admin UIs. |
-| **Helm** | v4.0.0+ | Kubernetes package manager | Latest major version with improved templating, better CRD support, and refined best practices. Essential for distributing complex operators with customizable deployments (Ingress vs Gateway API, auth backends, storage classes). |
-| **Docusaurus** | v3.9.x | Documentation site generator | Meta-backed, production-ready static site generator with MDX support, versioning, internationalization, and Algolia search integration. Standard choice for open-source Kubernetes projects (used by Redux, Kubernetes ecosystem projects). React-based for customization. |
-| **Go** | v1.24.6+ | Operator & API implementation language | Required by Kubebuilder v4, excellent concurrency primitives, native Kubernetes client libraries, and strong ecosystem for cloud-native development. Industry standard for Kubernetes operators. |
+The project already has Go 1.25.3, controller-runtime v0.23.1, Ginkgo v2/Gomega for operator E2E, a `web/` directory with Vite 7.3 + React 19, and three GitHub Actions workflow files. This research builds on what exists.
 
-### Supporting Libraries
+---
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| **slog** | stdlib (Go 1.21+) | Structured logging | Standard library solution for new Go 1.21+ projects. Provides structured logging without external dependencies, good balance of features and simplicity. Use for most logging needs in operators and APIs. |
-| **Zap** | Latest | High-performance structured logging | When logging performance is critical (4-20x faster than alternatives). Use in hot paths or high-throughput reconciliation loops where even small performance gains matter. |
-| **shadcn/ui** | Latest | React component library | Pre-built, accessible, customizable components for admin UI. Built with Radix UI primitives and Tailwind CSS. Use for rapid admin panel development with consistent design system. Not a package dependency—copy components into your codebase. |
-| **Tailwind CSS** | v4.x | Utility-first CSS framework | Modern styling approach for Next.js admin UIs. Pairs well with shadcn/ui, provides dark mode support, responsive design utilities. Use for consistent, maintainable styling. |
-| **Velero** | Latest | Kubernetes backup & restore | CNCF project for cluster-wide backup/restore of resources and persistent volumes. Use for scheduled and on-demand backups. Integrates with S3-compatible storage (MinIO, AWS S3, etc.). |
-| **MinIO** | Latest | S3-compatible object storage | Open-source S3-compatible storage that can run in-cluster or on-premises. Use for air-gapped environments, cost reduction vs cloud storage, or when data sovereignty is required. Pairs perfectly with Velero. |
-| **prometheus-operator** | Latest | Metrics collection & monitoring | CNCF standard for Kubernetes-native Prometheus deployments. Use for exposing operator metrics, API metrics, and cluster observability. Provides ServiceMonitor CRDs for declarative scrape configuration. |
-| **cert-manager** | v1.19.1+ | TLS certificate management | Automates certificate provisioning and renewal for webhooks (required for admission controllers in operators). Industry standard for Kubernetes TLS automation. |
-| **Gateway API** | GA (HTTPRoute) | Modern Kubernetes ingress | Successor to Ingress API, provides role-based design (infra teams manage Gateway, app teams manage HTTPRoutes), better protocol support (HTTP, TCP, UDP, gRPC), and advanced routing. **Critical**: Ingress NGINX retired March 2026, no security updates post-November 2026 for AKS. Migrate to Gateway API now. |
+## Recommended Stack Additions
 
-### Development Tools
+### E2E Testing (Frontend)
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| **kubectl** | Kubernetes CLI | Essential for operator development and testing |
-| **kind** | Local Kubernetes clusters | Fast local testing of operators and Helm charts |
-| **kustomize** | Kubernetes manifest customization | Built into kubectl, useful for environment-specific overlays |
-| **goreleaser** | Go release automation | Automates building, packaging, and releasing operator binaries |
-| **golangci-lint** | Go linting | Comprehensive linter with 50+ linters, standard for Go projects |
-| **envtest** | Integration testing | controller-runtime's testing framework, spins up real API server for operator testing |
-| **pnpm** | Node.js package manager | Faster and more disk-efficient than npm/yarn for frontend dependencies |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **@playwright/test** | ^1.58 | Browser E2E test runner | Industry standard for E2E testing. Faster than Cypress, native multi-browser support (Chromium, Firefox, WebKit), built-in auto-wait eliminates flaky selectors, first-class TypeScript support. The project already uses TypeScript in `web/`. Playwright's `webServer` config can launch the Go binary before tests, making it perfect for testing the embedded SPA. |
+| **Chromium (via Playwright)** | bundled | Browser engine for CI | Run Chromium only in CI (not full multi-browser) to keep pipeline fast. Chromium covers the vast majority of users. Add Firefox/WebKit later if needed. |
+
+### Go Testing (API Integration)
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **net/http/httptest** | stdlib | HTTP test server | Already in use in `internal/api/helpers_test.go`. The project has a well-structured `testServer` pattern with fake K8s client, JWT service, and manifest loader. No new dependency needed -- extend the existing pattern. |
+| **testing** | stdlib | Test framework | Project already uses stdlib `testing` with table-driven tests for API handlers. Consistent with existing patterns. Do NOT add testify -- the existing tests use raw `t.Errorf`/`t.Fatalf` and adding testify mid-project creates inconsistency for no real benefit. |
+| **controller-runtime/pkg/client/fake** | v0.23.1 (existing) | Fake K8s client | Already used in `helpers_test.go` for mocking Kubernetes API. Provides typed, scheme-aware fake client. No additional dependency. |
+
+### Kubernetes Test Environment
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **kind** | v0.31.0 | Local K8s cluster in Docker | Already referenced in Makefile and existing E2E test suite. v0.31.0 is the latest release. Default node image is `kindest/node:v1.35.0`. For testing the operator against the same K8s version as production (v1.32), use `kindest/node:v1.32.11@sha256:5fc52d52a7b9574015299724bd68f183702956aa4a2116ae75a63cb574b35af8`. |
+| **kindest/node** | v1.32.11 | K8s node image matching production | The production Talos cluster runs K8s v1.32.3. Testing against v1.32.x ensures API compatibility. Pin to SHA256 digest for reproducibility. |
+| **envtest** | (existing, via controller-runtime) | Lightweight K8s API for unit tests | Already configured in Makefile for `make test`. Uses `setup-envtest` to download API server binaries. No changes needed. |
+
+### CI Pipeline (GitHub Actions)
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **actions/checkout** | v4 | Repository checkout | Already in use across all three workflow files. v4 is stable and sufficient. v5/v6 exist but require runner v2.327.1+; staying on v4 avoids runner compatibility issues with ubuntu-latest. |
+| **actions/setup-go** | v5 | Go toolchain setup | Already in use. Uses `go-version-file: go.mod` which correctly reads Go 1.25.3. v5 is stable. |
+| **actions/setup-node** | v5 | Node.js for Playwright | Needed for the new Playwright workflow. Use `node-version-file` pointing to a `.node-version` file or hardcode `node-version: 22` to match the Dockerfile's `node:22-alpine`. |
+| **actions/upload-artifact** | v4 | Playwright report artifacts | Upload HTML test reports and trace files on failure. v4 is current and compatible with existing runner versions. |
+| **golangci/golangci-lint-action** | v8 | Go linting | Already in use at v8 with golangci-lint v2.7.2. No changes needed. Note: v9 exists but requires runner v2.327.1+; v8 works with current ubuntu-latest. |
+
+### Supporting Tools (Development)
+
+| Tool | Version | Purpose | Why |
+|------|---------|---------|-----|
+| **kind** (CLI) | v0.31.0 | Local cluster management | Install via `go install sigs.k8s.io/kind@v0.31.0` or download binary. Already referenced as `KIND` variable in Makefile. |
+| **npx playwright install** | (via @playwright/test) | Browser binary management | Playwright bundles browser downloads. Run `npx playwright install --with-deps chromium` to install only Chromium + system deps. |
+
+---
+
+## What NOT to Add
+
+| Technology | Why Skip |
+|------------|----------|
+| **Cypress** | Playwright is faster, has better auto-wait, native multi-browser, and better CI integration. Cypress has a commercial license for parallel execution. Playwright is fully open source. |
+| **testcontainers-go** | The project already has kind for full cluster tests and envtest for lightweight API server tests. testcontainers adds complexity without benefit -- the test matrix is "fake client OR real cluster," not "individual containers." |
+| **testify** | Existing API tests use stdlib `testing` with `t.Errorf`. Mixing assertion libraries creates inconsistency. The project already has Ginkgo/Gomega for operator E2E tests (Kubebuilder convention). Adding a third style is noise. |
+| **Vitest** | The frontend is an embedded SPA tested via Playwright E2E flows against the real Go backend. Component-level React tests add maintenance burden with low value for a panel UI. If component tests become needed later, Vitest is the right choice, but not for v1.1. |
+| **Docker Compose** | kind provides a full K8s cluster. Docker Compose would only test the API in isolation, which httptest already covers. The whole point of E2E is testing the deployed system. |
+| **Selenium** | Legacy. Playwright supersedes it in every dimension: speed, API design, reliability, maintenance. |
+| **k3s/k3d** | kind is already integrated, Kubebuilder-scaffolded, and standard for CI. Switching to k3d gains nothing and loses the existing Kubebuilder integration. |
+| **Allure Reports** | Playwright's built-in HTML reporter is sufficient. Allure adds Java dependency and complexity for marginal benefit at this scale. |
+
+---
+
+## Integration Points with Existing Build System
+
+### Makefile Additions Needed
+
+```makefile
+# Playwright E2E tests (new)
+PLAYWRIGHT_DIR ?= e2e
+
+.PHONY: test-playwright
+test-playwright: build  ## Run Playwright E2E tests against built binary
+    cd $(PLAYWRIGHT_DIR) && npx playwright test
+
+.PHONY: test-playwright-ui
+test-playwright-ui:  ## Run Playwright tests with interactive UI
+    cd $(PLAYWRIGHT_DIR) && npx playwright test --ui
+```
+
+### Existing Makefile Targets (No Changes Needed)
+
+| Target | What It Does | Status |
+|--------|-------------|--------|
+| `make test` | Runs Go unit/integration tests with envtest | Already works. Excludes `/e2e` directory. |
+| `make test-e2e` | Runs Ginkgo operator E2E tests against kind | Already scaffolded. Needs custom test cases. |
+| `make setup-test-e2e` | Creates kind cluster if not exists | Already works. |
+| `make cleanup-test-e2e` | Deletes kind cluster | Already works. |
+| `make lint` | Runs golangci-lint | Already works. |
+| `make docker-build` | Builds container image | Already works. Used by E2E suite to load image into kind. |
+
+### File Structure for New Testing Code
+
+```
+kterodactyl/
+  e2e/                          # NEW: Playwright E2E tests
+    package.json                # Separate from web/ -- test-only deps
+    playwright.config.ts        # Playwright configuration
+    tests/
+      auth.spec.ts              # Login/register flows
+      server-management.spec.ts # Create/start/stop server flows
+      admin.spec.ts             # Admin panel flows
+    fixtures/
+      auth.ts                   # Shared authentication helpers
+  internal/api/
+    handlers_*_test.go          # EXISTING: Extend with more test cases
+    helpers_test.go             # EXISTING: testServer infrastructure
+  test/e2e/                     # EXISTING: Kubebuilder operator E2E (Ginkgo)
+    e2e_test.go                 # Extend with CRD lifecycle tests
+    e2e_suite_test.go           # Existing suite setup
+  .github/workflows/
+    test.yml                    # EXISTING: Go unit tests
+    test-e2e.yml                # EXISTING: Operator E2E tests
+    lint.yml                    # EXISTING: golangci-lint
+    test-playwright.yml         # NEW: Playwright E2E workflow
+```
+
+**Key decision: Playwright lives in `e2e/` (root level), NOT inside `web/`.**
+
+Rationale: Playwright tests the integrated system (Go backend + embedded SPA), not just the React frontend. The test suite needs to build the Go binary, start it, and test against it. Putting it in `web/` implies it's a frontend concern when it's actually a system concern. A root-level `e2e/` directory with its own `package.json` keeps test dependencies isolated from the production `web/` build.
+
+---
 
 ## Installation
 
-### Operator & API (Go)
+### Playwright E2E Setup
 
 ```bash
-# Initialize Kubebuilder project (v4)
-kubebuilder init --domain kterodactyl.io --repo github.com/yourusername/kterodactyl
+# Create the e2e directory and initialize
+mkdir -p e2e
+cd e2e
 
-# Create API
-kubebuilder create api --group game --version v1alpha1 --kind GameServer
+# Initialize with Playwright
+npm init -y
+npm install -D @playwright/test@^1.58
 
-# Install Go dependencies
-go mod download
-
-# Development dependencies
-go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+# Install Chromium browser binary (CI will use --with-deps)
+npx playwright install chromium
 ```
 
-### Frontend (Next.js + TypeScript)
+**e2e/package.json** (minimal):
+```json
+{
+  "name": "kterodactyl-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58"
+  }
+}
+```
+
+### kind (for local development)
 
 ```bash
-# Create Next.js app with TypeScript
-pnpm create next-app@latest --typescript --tailwind --app
+# Install kind v0.31.0
+go install sigs.k8s.io/kind@v0.31.0
 
-# Add shadcn/ui
-pnpm dlx shadcn-ui@latest init
-
-# Core UI components
-pnpm dlx shadcn-ui@latest add button card table form input select
-
-# Add additional dependencies
-pnpm add @tanstack/react-query @tanstack/react-table
-pnpm add -D @types/node @types/react @types/react-dom
+# Or download binary directly (CI approach)
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.31.0/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
 ```
 
-### Helm Chart
+### Go Dependencies (no new additions)
 
 ```bash
-# Create Helm chart
-helm create kterodactyl-operator
-
-# Lint chart
-helm lint ./kterodactyl-operator
-
-# Template validation
-helm template kterodactyl ./kterodactyl-operator --debug
+# All Go test dependencies already present:
+# - net/http/httptest (stdlib)
+# - testing (stdlib)
+# - controller-runtime/pkg/client/fake (existing)
+# - onsi/ginkgo/v2 + onsi/gomega (existing)
+#
+# No `go get` needed for v1.1 testing.
 ```
 
-### Documentation (Docusaurus)
+---
 
-```bash
-# Create Docusaurus site
-pnpm create docusaurus@latest docs classic --typescript
+## GitHub Actions Workflow Versions
 
-# Add versioning support (for stable/beta docs)
-pnpm run docusaurus docs:version 1.0.0
+### Current Workflows (Keep As-Is)
 
-# Add search (Algolia integration in docusaurus.config.js)
+| Workflow | File | Actions Used | Status |
+|----------|------|-------------|--------|
+| Tests | `test.yml` | checkout@v4, setup-go@v5 | Working. Runs `make test`. |
+| E2E Tests | `test-e2e.yml` | checkout@v4, setup-go@v5 | Working but tests are scaffold-only. |
+| Lint | `lint.yml` | checkout@v4, setup-go@v5, golangci-lint-action@v8 | Working. |
+
+### New Workflow Needed
+
+| Workflow | File | Actions Needed | Trigger |
+|----------|------|---------------|---------|
+| Playwright E2E | `test-playwright.yml` | checkout@v4, setup-go@v5, setup-node@v5, upload-artifact@v4 | push + PR to main |
+
+### Recommended Playwright CI Workflow Structure
+
+```yaml
+name: Playwright E2E Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  playwright:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Build frontend
+        run: cd web && npm ci && npm run build
+
+      - name: Build Go binary
+        run: |
+          cp -r web/dist internal/api/frontend
+          go build -o bin/manager cmd/main.go
+
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 14
 ```
+
+---
+
+## Playwright Configuration Recommendations
+
+```typescript
+// e2e/playwright.config.ts
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests',
+  fullyParallel: false, // Sequential for shared server state
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
+  workers: 1, // Single worker -- tests share server state
+  reporter: process.env.CI
+    ? [['html', { open: 'never' }], ['github']]
+    : [['html', { open: 'on-failure' }]],
+
+  use: {
+    baseURL: process.env.BASE_URL || 'http://localhost:8080',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+  },
+
+  webServer: {
+    command: '../bin/manager --api-only', // Start the Go binary
+    url: 'http://localhost:8080/healthz',
+    reuseExistingServer: !process.env.CI,
+    timeout: 30_000,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  },
+
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+});
+```
+
+**Key configuration decisions:**
+- **`workers: 1`** -- Tests modify shared state (create users, servers). Parallel execution causes flaky tests. Start sequential, optimize later.
+- **`fullyParallel: false`** -- Same reason. The Go backend has shared state.
+- **`trace: 'retain-on-failure'`** -- Traces are invaluable for debugging CI failures but expensive to store for passing tests.
+- **`reporter: 'github'`** in CI -- Annotates PR with test failures directly in the GitHub UI.
+- **`webServer`** -- Playwright manages the Go process lifecycle. Starts it before tests, kills it after.
+- **Chromium only** -- One browser in CI keeps the pipeline under 10 minutes. The SPA uses standard web APIs with no browser-specific code.
+
+---
+
+## kind Cluster Configuration for Operator E2E
+
+The existing `test-e2e.yml` downloads kind from `latest`. Pin it for reproducibility:
+
+```yaml
+# In .github/workflows/test-e2e.yml
+- name: Install kind v0.31.0
+  run: |
+    curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.31.0/kind-linux-amd64
+    chmod +x ./kind
+    sudo mv ./kind /usr/local/bin/kind
+```
+
+For custom kind cluster config (if needed for Gateway API testing):
+
+```yaml
+# kind-config.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.32.11@sha256:5fc52d52a7b9574015299724bd68f183702956aa4a2116ae75a63cb574b35af8
+```
+
+---
+
+## Version Compatibility Matrix
+
+| Component | Version | Constraint | Source |
+|-----------|---------|-----------|--------|
+| Go | 1.25.3 | Set in go.mod | Existing |
+| Node.js | 22 | Match Dockerfile `node:22-alpine` | Existing |
+| K8s (production) | v1.32.3 | Talos cluster | Existing |
+| K8s (test/kind) | v1.32.11 | Match production minor version | kind v0.31.0 images |
+| controller-runtime | v0.23.1 | Set in go.mod | Existing |
+| Ginkgo | v2.27.2 | Set in go.mod | Existing |
+| Gomega | v1.38.2 | Set in go.mod | Existing |
+| Playwright | ^1.58 | Latest stable | npm registry |
+| kind | v0.31.0 | Latest stable | GitHub releases |
+| golangci-lint | v2.7.2 | Set in Makefile | Existing |
+
+---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| **Kubebuilder** | Operator SDK | Use Operator SDK when you need OLM (Operator Lifecycle Manager) integration, multi-language operators (Ansible/Helm-based), or OperatorHub publishing. For pure Go operators, Kubebuilder is simpler and more aligned with kubernetes-sigs. |
-| **Kubebuilder** | controller-runtime directly | Only if you need complete control and are building a highly custom controller that doesn't fit the operator pattern. Requires deep Kubernetes expertise. 99% of projects should use Kubebuilder. |
-| **Gin** | Echo | Use Echo if you prefer its centralized error handling and request validation patterns. Performance is nearly identical (34k req/s). Echo has ~30k stars vs Gin's 81k. |
-| **Gin** | Fiber | Use Fiber if absolute performance is the #1 priority (36k req/s vs 34k) and you're comfortable with Express.js-style API. Trade-off: less Go standard library compatibility, smaller ecosystem. |
-| **Gin** | Chi | Use Chi if you want a minimalist router that stays closer to net/http. Chi is fully stdlib-compatible but provides less structure than Gin. Good for small services or teams that prefer stdlib patterns. |
-| **Next.js 15** | Vite + React | Use Vite if you don't need SSR/SSG and want faster development server. Next.js provides more out-of-the-box (routing, API routes, optimizations) for admin dashboards. |
-| **Velero + MinIO** | Custom backup solution | Only if you have very specific requirements that Velero doesn't support. Velero is battle-tested and CNCF-backed. |
-| **MinIO** | AWS S3 / Cloud storage | Use cloud storage if you're already cloud-native and cost isn't a concern. MinIO is better for on-premises, air-gapped, or cost-sensitive deployments. Both are S3-compatible. |
-| **slog** | Zap | Use Zap in performance-critical paths or high-throughput services. slog is 95% as fast but zero external dependencies. |
-| **slog** | Zerolog | Use Zerolog if you need absolute cutting-edge performance and JSON-first logging. slog is now preferred for new Go 1.21+ projects due to stdlib integration. |
-| **Gateway API** | Ingress | **Do not use Ingress for new projects in 2026.** Ingress NGINX is retired (March 2026), with no security updates after November 2026. Gateway API is GA and the future of Kubernetes networking. |
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| E2E Runner | Playwright | Cypress | Cypress is slower, commercial license for parallel, worse multi-browser. Playwright is Microsoft-backed, fully OSS, faster, better auto-wait. |
+| E2E Runner | Playwright | Selenium/WebDriver | Legacy API, slow, brittle. Playwright was built to replace it. |
+| Go Assertions | stdlib testing | testify | Project already uses stdlib `t.Errorf` pattern. Mixing creates inconsistency. Ginkgo/Gomega is used for operator tests (Kubebuilder convention). |
+| K8s Test Cluster | kind | k3d/k3s | kind is already scaffolded by Kubebuilder, integrated into Makefile, and standard for CI. k3d is comparable but switching provides no benefit. |
+| K8s Test Cluster | kind | minikube | minikube is heavier (VM-based by default), slower to start, worse CI support. kind is Docker-native and purpose-built for CI. |
+| K8s Fake Client | controller-runtime/fake | client-go/fake | controller-runtime fake is typed and scheme-aware. Already in use. client-go fake is lower-level. |
+| Component Tests | Skip (for v1.1) | Vitest | Playwright covers the integrated happy paths. Component tests for a panel UI have low ROI vs. E2E. Revisit if the frontend grows complex. |
+| CI Reporter | Playwright built-in HTML | Allure | Allure requires Java, adds complexity. Playwright HTML reporter + GitHub annotations is sufficient. |
+| Browser in CI | Chromium only | Multi-browser | The SPA uses standard web APIs. Testing 3 browsers triples CI time for negligible coverage gain at this scale. |
 
-## What NOT to Use
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| **Ingress API** | Retired March 2026, no security updates post-November 2026 for AKS. Frozen—all new features go to Gateway API. Limited to HTTP/HTTPS, can't handle TCP/UDP/gRPC. | **Gateway API** (HTTPRoute for HTTP/HTTPS, TCPRoute for game server traffic if needed) |
-| **Operator SDK without Kubebuilder** | Operator SDK uses Kubebuilder under the hood for Go projects. Unless you need OLM/OperatorHub/Ansible/Helm operators, Kubebuilder is more direct and simpler. | **Kubebuilder v4** for pure Go operators |
-| **React 18 + Next.js 14** | React 19 and Next.js 15 are stable and production-ready in 2025-2026. Older versions miss compiler improvements, server components enhancements, and performance gains. | **React 19 + Next.js 15** |
-| **JavaScript (no TypeScript)** | TypeScript is now the standard for production React applications. Reduces runtime errors, improves maintainability, and provides better IDE support. No reason to avoid it in 2026. | **TypeScript 5.x** with strict mode |
-| **Logrus** | Unmaintained, superseded by slog (stdlib) and Zap/Zerolog for performance. 4-20x slower than modern alternatives. | **slog** (stdlib) for most use cases, **Zap** for high performance |
-| **Helm v2 or v3** | Helm v4 is stable and available. v2 is deprecated, v3 lacks v4 improvements. | **Helm v4.0.0+** |
-| **Docusaurus v2 or v1** | Docusaurus v3 (3.9.x) is current with better performance, React 19 support, and modern features. | **Docusaurus v3.9.x** |
-| **Custom CRD validation (code)** | OpenAPI validation in CRD spec is declarative, validated by API server, and more maintainable than admission webhooks for simple validation. | **OpenAPI validation in CRD spec**, admission webhooks only for complex cross-field validation |
-| **Manual Prometheus setup** | prometheus-operator provides declarative ServiceMonitor CRDs and automates Prometheus deployment. Manual setup is error-prone. | **prometheus-operator** with ServiceMonitor CRDs |
-
-## Stack Patterns by Variant
-
-### Pattern 1: Cloud-Native Deployment (AWS/GCP/Azure)
-
-**When:** Deploying to managed Kubernetes (EKS, GKE, AKS)
-
-**Stack Adjustments:**
-- Use cloud-provider LoadBalancer for Gateway API
-- Use cloud object storage (S3, GCS, Azure Blob) instead of MinIO for Velero backups
-- Leverage cloud-provider CSI drivers for PersistentVolumes
-- Use cloud IAM for authentication (IRSA on AWS, Workload Identity on GCP)
-
-**Rationale:** Cloud providers offer managed services that reduce operational burden and integrate seamlessly with Kubernetes.
-
-### Pattern 2: On-Premises / Bare Metal Deployment
-
-**When:** Deploying to self-managed Kubernetes clusters (on-prem datacenters, homelabs)
-
-**Stack Adjustments:**
-- Deploy MinIO in-cluster or adjacent for S3-compatible storage
-- Use MetalLB for LoadBalancer services (Gateway API)
-- Use local-path-provisioner or OpenEBS for PersistentVolumes
-- Use Dex or Keycloak for authentication (OIDC provider)
-
-**Rationale:** On-premises environments require self-hosted alternatives to cloud-managed services. MinIO provides S3 compatibility without cloud costs.
-
-### Pattern 3: Air-Gapped / Secure Environments
-
-**When:** Compliance requirements prevent internet access (DoD, finance, healthcare)
-
-**Stack Adjustments:**
-- All container images must be mirrored to private registry
-- MinIO is mandatory (cannot use cloud storage)
-- Use internal Helm chart repository (Harbor, Artifactory, or ChartMuseum)
-- Use internal documentation hosting (self-hosted Docusaurus)
-- Use internal Git server (GitLab, Gitea) for GitOps
-
-**Rationale:** Air-gapped environments require all dependencies to be internalized. MinIO, Harbor, and self-hosted tools enable complete stack isolation.
-
-### Pattern 4: Multi-Tenant SaaS
-
-**When:** Offering Kterodactyl as a managed service with multiple customers
-
-**Stack Adjustments:**
-- Implement tenant isolation at the namespace level
-- Use namespace-scoped operators (if feasible) or tenant filtering in cluster-scoped operator
-- Add tenant authentication layer (API keys, OIDC per-tenant)
-- Use separate Velero backup schedules per tenant
-- Implement resource quotas and RBAC per tenant
-
-**Rationale:** Multi-tenancy requires strong isolation, authentication, and resource management. Kubernetes namespaces provide baseline isolation, but additional RBAC and quota enforcement are critical.
-
-## Version Compatibility
-
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| Kubebuilder v4.x | controller-runtime v0.23.x | Kubebuilder v4 requires controller-runtime v0.18+, latest v0.23.x recommended |
-| Kubebuilder v4.x | Kubernetes 1.30+ | Kubebuilder v4 targets Kubernetes 1.30+, supports 1.28+ with some limitations |
-| Kubebuilder v4.x | Go 1.24.6+ | Kubebuilder v4 requires Go 1.21+ for slog support, 1.24+ recommended |
-| Next.js 15 | React 19 | Next.js 15 officially supports React 19 RC/stable, backwards compatible with React 18 via Pages Router |
-| Next.js 15 | Node.js 18.18+ | Next.js 15 requires Node.js 18.18 or later (Node.js 20+ recommended) |
-| TypeScript 5.x | React 19 | Fully compatible, use `@types/react@19` for correct typings |
-| Velero | Kubernetes 1.21+ | Velero supports Kubernetes 1.21+, test with target cluster version |
-| Gateway API | Kubernetes 1.27+ | HTTPRoute GA in Gateway API v1.0, requires Kubernetes 1.27+ for full feature support |
-| cert-manager v1.19+ | Kubernetes 1.26+ | cert-manager v1.19+ requires Kubernetes 1.26+ |
-| Helm v4.0.0 | Kubernetes 1.29+ | Helm v4 supports Kubernetes 1.29-1.32 (verify latest compatibility matrix) |
-
-## Confidence Assessment
-
-| Technology | Confidence | Source |
-|------------|-----------|---------|
-| Kubebuilder v4 | **HIGH** | Official kubernetes-sigs project, verified current releases via GitHub |
-| controller-runtime v0.23 | **HIGH** | Verified via GitHub releases and Kubebuilder compatibility matrix |
-| Gin v1.10+ | **HIGH** | Verified via GitHub releases, 81k stars, 48% market share in 2025 research |
-| Next.js 15 + React 19 | **HIGH** | Official Next.js documentation confirms v15 with React 19 support |
-| TypeScript 5.x | **HIGH** | Industry standard, official TypeScript releases verified |
-| Helm v4 | **HIGH** | Official Helm documentation confirms v4.0.0 release |
-| Docusaurus v3.9.x | **HIGH** | Official Docusaurus website confirms v3.9.2 current release |
-| Gateway API (HTTPRoute GA) | **HIGH** | Verified via official Gateway API docs, Ingress retirement confirmed by Kubernetes SIG Network |
-| slog (Go stdlib) | **HIGH** | Part of Go 1.21+ standard library, official Go documentation |
-| Velero + MinIO | **HIGH** | CNCF projects, widely adopted for Kubernetes backup solutions |
-| shadcn/ui | **MEDIUM** | Popular in community (18+ production-ready templates in 2025-2026), not official React project |
-| prometheus-operator | **HIGH** | CNCF project, standard for Kubernetes Prometheus deployments |
+---
 
 ## Sources
 
-### Operator Frameworks
-- [Kubebuilder vs Operator SDK discussion](https://github.com/operator-framework/operator-sdk/issues/1758)
-- [ITNEXT: Developing Kubernetes Operators](https://itnext.io/developing-kubernetes-operators-9eb5f8230a72)
-- [Operator SDK FAQ](https://sdk.operatorframework.io/docs/faqs/)
-- [Kubebuilder GitHub releases](https://github.com/kubernetes-sigs/kubebuilder/releases)
-- [OuterByte: Kubernetes Operators 2025 Guide](https://outerbyte.com/kubernetes-operators-2025-guide/)
-- [Operator SDK Best Practices](https://sdk.operatorframework.io/docs/best-practices/common-recommendation/)
-- [Kubebuilder Book: Good Practices](https://book.kubebuilder.io/reference/good-practices)
-
-### Go API Frameworks
-- [Medium: Top 6 Go Web Frameworks for 2025](https://medium.com/@yashbatra11111/top-6-go-web-frameworks-for-2025-which-one-should-you-choose-5821f31a2010)
-- [LogRocket: Best Go Frameworks 2025](https://blog.logrocket.com/top-go-frameworks-2025/)
-- [JHK InfoTech: Golang Web Framework Comparison](https://www.jhkinfotech.com/blog/golang-web-framework)
-- [Medium: Gin vs Fiber vs Echo Performance](https://medium.com/deno-the-complete-reference/go-gin-vs-fiber-vs-echo-how-much-performance-difference-is-really-there-for-a-real-world-use-1ed29d6a3e4d)
-- [Encore: Best Go Backend Frameworks 2026](https://encore.dev/articles/best-go-backend-frameworks)
-
-### Next.js & React
-- [Next.js 15 Release](https://nextjs.org/blog/next-15)
-- [Next.js Templates: Admin Dashboards 2026](https://nextjstemplates.com/blog/admin-dashboard-templates)
-- [DEV: Free Next.js Admin Dashboards 2025](https://dev.to/vinishbhaskar/free-nexts-admin-dashboard-55ko)
-- [Next.js Server Components Docs](https://nextjs.org/docs/app/getting-started/server-and-client-components)
-- [Coder Trove: React Server Components 2025](https://www.codertrove.com/articles/react-server-components-2025-nextjs-performance)
-- [Medium: React 19 TypeScript Best Practices 2025](https://medium.com/@CodersWorld99/react-19-typescript-best-practices-the-new-rules-every-developer-must-follow-in-2025-3a74f63a0baf)
-
-### Helm
-- [Helm Official Documentation](https://helm.sh/docs)
-- [Helm Chart Best Practices](https://helm.sh/docs/chart_best_practices/)
-- [Atmosly: Helm Charts 2026 Guide](https://atmosly.com/knowledge/helm-charts-in-kubernetes-definitive-guide-for-2025)
-- [Carlos Neto: Helm Best Practices](https://carlosneto.dev/blog/2025/2025-02-25-helm-best-practices/)
-- [Prequel: Helm Chart Reliability 2025](https://www.prequel.dev/blog-post/the-real-state-of-helm-chart-reliability-2025-hidden-risks-in-100-open-source-charts)
-
-### Docusaurus
-- [Docusaurus Official Site](https://docusaurus.io/)
-- [Docusaurus GitHub](https://github.com/facebook/docusaurus)
-- [Meta Open Source: Docusaurus](https://opensource.fb.com/projects/docusaurus/)
-- [Hackmamba: Top Open-Source Documentation Tools 2026](https://hackmamba.io/technical-documentation/top-5-open-source-documentation-development-platforms-of-2024/)
-
-### Kubernetes Backup & Storage
-- [LevenzonLabs: Velero, MinIO, and Kubernetes Backups](https://www.levenzonlabs.com/posts/post-07-21-2025v2/)
-- [MicroK8s: Backup with Velero](https://microk8s.io/docs/velero)
-- [Velero Documentation](https://velero.io/docs/main/contributions/minio/)
-- [Backblaze: Object Storage and Kubernetes](https://www.backblaze.com/blog/5-tools-to-integrate-object-storage-and-kubernetes/)
-
-### Gateway API & Networking
-- [Kong: Gateway API vs Ingress](https://konghq.com/blog/engineering/gateway-api-vs-ingress)
-- [Microsoft: Ingress to Gateway API Migration](https://techcommunity.microsoft.com/blog/azurearchitectureblog/from-ingress-to-gateway-api-a-pragmatic-path-forward-and-why-it-matters-now/4489779)
-- [Tigera: Kubernetes Ingress vs Gateway API](https://www.tigera.io/blog/is-it-time-to-migrate-a-practical-look-at-kubernetes-ingress-vs-gateway-api/)
-- [Gateway API Official Docs](https://gateway-api.sigs.k8s.io/)
-- [CNCF: Understanding Gateway API](https://www.cncf.io/blog/2025/05/02/understanding-kubernetes-gateway-api-a-modern-approach-to-traffic-management/)
-
-### Logging
-- [Dash0: Best Go Logging Tools 2025](https://www.dash0.com/faq/best-go-logging-tools-in-2025-a-comprehensive-guide)
-- [Uptrace: Golang Logging Libraries 2025](https://uptrace.dev/blog/golang-logging)
-- [Better Stack: Logging in Go with Slog](https://betterstack.com/community/guides/logging/logging-in-go/)
-- [Last9: Golang Logging Guide](https://last9.io/blog/golang-logging-guide-for-developers/)
-- [Leapcell: High-Performance Structured Logging](https://leapcell.io/blog/high-performance-structured-logging-in-go-with-slog-and-zerolog)
-
-### Prometheus & Observability
-- [Better Stack: Prometheus Best Practices](https://betterstack.com/community/guides/monitoring/prometheus-best-practices/)
-- [Operator SDK: Observability Best Practices](https://sdk.operatorframework.io/docs/best-practices/observability-best-practices/)
-- [Spacelift: Prometheus Operator Tutorial](https://spacelift.io/blog/prometheus-operator)
-- [CNCF: Prometheus Labels Best Practices](https://www.cncf.io/blog/2025/07/22/prometheus-labels-understanding-and-best-practices/)
-
-### shadcn/ui
-- [shadcn/ui Template Gallery](https://www.shadcn.io/template/category/dashboard)
-- [AdminLTE: Shadcn Admin Dashboard Templates](https://adminlte.io/blog/shadcn-admin-dashboard-templates/)
-- [GitHub: next-shadcn-dashboard-starter](https://github.com/Kiranism/next-shadcn-dashboard-starter)
-- [Shadcn UI Kit](https://shadcnuikit.com/)
-
-### Game Server Management
-- [GitHub: Agones](https://github.com/googleforgames/agones)
-- [Google Cloud: Introducing Agones](https://cloud.google.com/blog/products/containers-kubernetes/introducing-agones-open-source-multiplayer-dedicated-game-server-hosting-built-on-kubernetes)
-- [Oreate AI: Agones Future of Game Server Management](https://www.oreateai.com/blog/exploring-agones-the-future-of-game-server-management-on-kubernetes/09f5f5e6ac5c3043102abcbb81d0826b)
-
----
-*Stack research for: Kterodactyl - Kubernetes-native game server management platform*
-*Researched: 2026-02-09*
-*Researcher: gsd-project-researcher agent*
+- [Playwright installation docs](https://playwright.dev/docs/intro) -- HIGH confidence (official docs, verified Feb 2026)
+- [Playwright CI setup](https://playwright.dev/docs/ci-intro) -- HIGH confidence (official docs)
+- [Playwright webServer config](https://playwright.dev/docs/test-webserver) -- HIGH confidence (official docs)
+- [@playwright/test npm](https://www.npmjs.com/package/@playwright/test) -- HIGH confidence (v1.58.2 latest as of Feb 2026)
+- [kind v0.31.0 release](https://github.com/kubernetes-sigs/kind/releases/tag/v0.31.0) -- HIGH confidence (official release)
+- [kind quick start](https://kind.sigs.k8s.io/docs/user/quick-start/) -- HIGH confidence (official docs)
+- [Kubebuilder kind integration](https://book.kubebuilder.io/reference/kind) -- HIGH confidence (official docs)
+- [Go Wiki: Table-Driven Tests](https://go.dev/wiki/TableDrivenTests) -- HIGH confidence (official Go wiki)
+- [golangci-lint-action releases](https://github.com/golangci/golangci-lint-action/releases) -- HIGH confidence (official repo)
+- [GitHub Actions setup-go](https://github.com/actions/setup-go) -- HIGH confidence (official repo, v5/v6 available)
+- [GitHub Actions setup-node](https://github.com/actions/setup-node) -- HIGH confidence (official repo)

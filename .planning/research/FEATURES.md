@@ -1,319 +1,182 @@
-# Feature Research: Game Server Management Panels
+# Feature Landscape: E2E CI/CD Test Suite
 
-**Domain:** Kubernetes-native game server management panel
-**Researched:** 2026-02-09
-**Confidence:** MEDIUM
+**Domain:** Testing infrastructure for Kubernetes-native web application (Go backend + React SPA + K8s operator)
+**Researched:** 2026-02-17
+**Confidence:** HIGH
 
-## Feature Landscape
+## Current Test Coverage Audit
 
-### Table Stakes (Users Expect These)
+Before defining features, here is what already exists in the codebase:
 
-Features users assume exist. Missing these = product feels incomplete.
+| Test Layer | What Exists | Coverage Quality |
+|------------|-------------|-----------------|
+| **Controller unit tests** | Ginkgo/envtest suite for GameServerReconciler + DNSReconciler | Good: covers lifecycle states, Pod/Service/PVC creation, DNS routing |
+| **API handler unit tests** | httptest-based tests for auth, gameserver CRUD, games, admin | Good: 7 files, table-driven, fake K8s client, JWT helpers |
+| **E2E scaffold** | Kubebuilder default Ginkgo e2e (manager pod boot + metrics) | Minimal: only verifies controller-manager starts and serves metrics |
+| **CI workflows** | `test.yml` (unit) and `test-e2e.yml` (e2e) on GitHub Actions | Basic: runs on push/PR, kind cluster setup, no Playwright, no frontend tests |
+| **Untested handlers** | `handlers_console.go`, `handlers_mods.go`, `handlers_backups.go`, `handlers_metrics.go` | Zero coverage: WebSocket, file upload, S3 operations, proxy metrics |
+| **Frontend tests** | None | Zero: no Playwright, no Vitest, no component tests |
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Server Lifecycle Management** | Core function - start/stop/restart servers | LOW | Docker containers make this straightforward; Pterodactyl, AMP, TCAdmin all provide this |
-| **Real-time Console Access** | Users need to execute commands and see output | MEDIUM | WebSocket-based console is standard; permissions must be granular |
-| **File Manager (Web-based)** | Edit configs without SFTP knowledge | MEDIUM | In-browser editing, upload/download, search; all major panels have this |
-| **SFTP Access** | Power users expect direct file access | LOW | Standard protocol, simple to expose with user credentials |
-| **Resource Monitoring** | See CPU/RAM/disk usage in real-time | MEDIUM | Real-time metrics display; Pterodactyl and AMP provide live graphs |
-| **Basic User Management** | Create users, assign to servers | LOW | Single-tenant hobby use expects at least owner + friends access |
-| **Game Configuration UI** | Adjust settings without editing files | MEDIUM | Game-specific forms for common parameters; Pterodactyl eggs define these |
-| **Server Installation** | One-click game server deployment | MEDIUM | Requires game definitions (Docker images + startup configs) |
-| **Scheduled Tasks** | Automate restarts, backups, commands | MEDIUM | Cron-like scheduling; Pterodactyl, AMP, TCAdmin all support this |
-| **Backup Creation** | Manual backup on-demand | MEDIUM | Compress server files, store locally or remotely |
-| **Connection Information** | Easy-to-find IP:Port for players | LOW | Display prominently; Kterodactyl adds DNS names for better UX |
+**Key gap:** The existing e2e tests only verify the controller-manager boots. They do not exercise any user flows, API endpoints against a real cluster, or the React frontend at all. The API handler tests use fake K8s clients and httptest -- good for unit coverage but not integration validation.
 
-### Differentiators (Competitive Advantage)
+## Table Stakes
 
-Features that set the product apart. Not required, but valued.
+Features users (developers, CI systems, reviewers) expect from a test suite of this nature. Missing these makes the suite feel incomplete or untrustworthy.
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Kubernetes-native Architecture** | True cloud-native scaling, GitOps-ready | HIGH | Kterodactyl's core differentiator; Agones does this for enterprise, but no hobbyist panel exists |
-| **Declarative Game Definitions** | Community can PR new games easily | MEDIUM | Dockerfile + YAML manifest vs Pterodactyl's complex egg JSON; simpler contribution model |
-| **Per-server DNS Names** | `minecraft.alice.domain.com` vs remembering IPs | MEDIUM | Massive UX win; no competitor does this; requires ingress/external-dns integration |
-| **GitOps-Compatible CRDs** | Manage servers via `kubectl apply` | LOW | Automatic with CRD design; appeals to DevOps users |
-| **Prometheus Metrics Export** | Native observability for ops teams | MEDIUM | Agones has this; traditional panels lack it; critical for cluster operators |
-| **S3-Compatible Backup Storage** | Modern cloud storage vs local-only | MEDIUM | AMP/Pterodactyl support this, but not standard; important for cloud deployments |
-| **Mod Support via PersistentVolumes** | Workshop/Nexus mods persist across restarts | MEDIUM | Separate PV for mods directory; cleaner than embedding in server data |
-| **Custom Resource Limits (K8s)** | Enforce CPU/RAM per-server with K8s primitives | LOW | ResourceQuotas/LimitRanges; native to K8s, but novel for game panels |
-| **Open-Source First** | No licensing costs, forkable, community-driven | N/A | Pterodactyl is OSS but complex; TCAdmin/AMP are paid; Agones is enterprise-focused |
-| **Single Binary Operator** | Easy deployment vs multi-service stack | MEDIUM | Go operator compiles to single binary; simpler than Pterodactyl's PHP+Node+Go stack |
+| Feature | Why Expected | Complexity | Dependencies on Existing Code |
+|---------|--------------|------------|-------------------------------|
+| **Kind cluster lifecycle management** | E2E tests for K8s operators need a real cluster; kind is the standard tool for CI | LOW | Extends existing `setup-test-e2e` / `cleanup-test-e2e` Makefile targets. Need to add Helm chart install, CRD deployment, image loading |
+| **Go API integration tests with httptest** | Handler tests using fake clients miss real K8s behavior (watch, status subresource, finalizers) | MEDIUM | Builds on existing `helpers_test.go` patterns. Untested handlers: console, mods, backups, metrics need test files |
+| **Playwright browser E2E tests** | React SPA has zero test coverage; login, server create/manage, and admin flows must be validated against a running backend | HIGH | Requires new `e2e/` directory in web or project root; depends on backend running in kind; needs npm/npx playwright install |
+| **Authentication state fixtures** | Playwright tests that log in on every test are slow and brittle; storageState reuse is standard practice | LOW | Depends on Playwright setup; leverages existing `/api/v1/auth/login` endpoint. Need admin + user fixture states |
+| **GitHub Actions CI pipeline** | PR checks that run the full suite give confidence to merge; existing workflows are too narrow | MEDIUM | Extends existing `test.yml` and `test-e2e.yml`; needs kind + Docker build + Helm install + Playwright install steps |
+| **Test isolation and cleanup** | Each test must not leak state into others; namespaces, users, and game servers must be created/destroyed per test | LOW | Existing patterns in `helpers_test.go` (fresh `testServer` per test) are good; E2E needs analogous namespace cleanup |
+| **Failure diagnostics collection** | When tests fail in CI, developers need logs, events, screenshots; existing AfterEach pattern collects k8s logs but needs extension | LOW | Existing `AfterEach` in `e2e_test.go` collects pod logs and events. Playwright adds screenshot/trace artifacts. GitHub Actions needs `upload-artifact` step |
+| **Test tagging and selective execution** | Developers must run just unit, just API integration, or just e2e tests; not everything on every keystroke | LOW | Existing `//go:build e2e` tag pattern is correct. Need parallel `make test-api` target. Playwright has `--grep` and project filtering |
+| **Makefile targets for all test tiers** | `make test`, `make test-api`, `make test-e2e`, `make test-playwright` -- developers expect one command per tier | LOW | Extends existing Makefile. `make test` already exists. Need new targets for integration and Playwright |
+| **Coverage reporting** | Developers and PR reviewers need to see what percentage of code is tested; Go has built-in coverage; Playwright has istanbul | MEDIUM | Existing `make test` already writes `cover.out`. Need to merge with integration coverage. Playwright coverage is separate |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+## Differentiators
 
-Features that seem good but create problems.
+Features that elevate this beyond a basic test setup. Not strictly required but significantly improve quality and developer experience.
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| **Billing Integration** | Commercial hosts want WHMCS/Blesta | Adds massive scope; turns panel into hosting platform | Document API for third-party billing; focus on core panel |
-| **Built-in Mod Installer UI** | "One-click Workshop mods" | Game-specific; 100+ games = 100+ integrations; maintenance nightmare | Document how to mount mod directories; let users handle Workshop CLI tools |
-| **Visual Node Editor** | "Drag-drop server configs" | Over-engineered for YAML editing; breaks GitOps declarative model | Provide great YAML examples + validation; CLI users will love declarative approach |
-| **Multi-Region Orchestration** | "Manage servers across 5 clusters" | Kubernetes federation is complex and rarely needed | Single cluster per panel instance; users can run multiple panels |
-| **Real-time Player List** | "See who's online" | Requires game-specific protocol integration for 100+ games | Expose metrics endpoint; users query via Grafana or game-specific tools |
-| **In-Panel Voice Chat** | "Discord alternative" | Massive scope creep; Discord already exists | Integrate with Discord bot for notifications instead |
-| **Custom DNS Management** | "Let users add TXT records" | Security nightmare; out of scope for game panel | Provide DNS pattern docs; cluster admin configures external-dns once |
+| Feature | Value Proposition | Complexity | Dependencies on Existing Code |
+|---------|-------------------|------------|-------------------------------|
+| **Go binary coverage via `go build -cover`** | Measures actual code coverage when the operator runs E2E tests against a kind cluster, not just unit test coverage | MEDIUM | Go 1.20+ feature. Build binary with `-cover`, set `GOCOVERDIR`, merge with `go tool covdata`. Requires modifying Dockerfile or build step for test image |
+| **Playwright visual regression baselines** | Catch unintended UI changes by comparing screenshots; especially valuable for admin panel and RJSF dynamic forms | MEDIUM | Needs `toHaveScreenshot()` baseline images committed to repo. Initial setup is per-page; maintenance is low after baselines exist |
+| **Test backlog tracking system** | Markdown file or GitHub issues tracking which features/handlers lack tests, with priority and assignee. Creates accountability | LOW | Pure documentation; references existing handler files. Updates as coverage grows |
+| **Playwright API + UI combined tests** | Playwright can make API calls to set up state, then verify UI reflects it. Faster than doing everything through the browser | LOW | Uses Playwright `request` context to call existing REST API (create server via API, verify dashboard via browser) |
+| **Parallel test execution in CI** | Run Go tests, Playwright tests, and linting concurrently in GitHub Actions matrix; reduces total CI time from ~15min to ~8min | MEDIUM | Requires restructuring workflow into jobs with dependency graph. Kind cluster setup is shared overhead |
+| **Helm chart validation tests** | Verify `helm template` renders correctly, `helm install --dry-run` succeeds, and chart values produce expected manifests | LOW | Depends on existing `chart/` directory. Uses `helm template` + snapshot comparison or OPA/conftest policy checks |
+| **WebSocket console E2E test** | Verify the xterm.js console connects, receives log output, and survives reconnection. This is the most complex untested feature | HIGH | Depends on real GameServer pod running in kind (not just CRD). Playwright has WebSocket support but xterm testing is non-trivial |
+| **Flake detection and retry strategy** | CI flakes erode trust in the suite; implement retry logic for known-flaky K8s operations (pod scheduling, DNS propagation) | LOW | Playwright has `retries` config. Go tests use `Eventually()` from Gomega already. Need consistent timeout/polling constants |
+
+## Anti-Features
+
+Features that seem valuable but would hurt the test suite's reliability, maintainability, or CI performance.
+
+| Anti-Feature | Why It Seems Good | Why Avoid | What to Do Instead |
+|--------------|-------------------|-----------|-------------------|
+| **Running Playwright inside the kind cluster (Testkube)** | "Test where you deploy" -- Testkube markets this heavily | Adds massive infrastructure complexity, makes local development harder, debugging is painful in-cluster. Overkill for a single-project test suite | Run Playwright on the GitHub Actions runner or locally, pointing at the kind cluster's port-forwarded services |
+| **Full browser matrix (Chrome + Firefox + Safari)** | "Test all browsers" -- standard advice | Game server panels are internal tools, not public websites. Multi-browser adds 3x CI time for near-zero user value. React + SPA means browser differences are minimal | Test Chromium only. Add Firefox/WebKit if users report browser-specific bugs |
+| **E2E tests for every API endpoint** | "100% E2E coverage" -- sounds thorough | E2E tests are slow (kind + docker + network). Most API behavior is already well-tested with httptest unit tests. E2E should test integration paths, not re-test unit-tested logic | E2E tests cover happy-path user journeys (signup -> create server -> manage -> delete). Edge cases stay in httptest |
+| **Mocking Kubernetes in Playwright tests** | "Faster tests without real cluster" -- MSW (Mock Service Worker) temptation | Defeats the purpose of E2E. The whole point is testing real K8s behavior. Mocked K8s hides real bugs (timing, RBAC, resource limits) | Use real kind cluster for E2E. Use httptest for fast API unit tests |
+| **Cypress instead of Playwright** | "Cypress has more tutorials" | Playwright has surpassed Cypress in adoption (235% growth 2025), better multi-tab support, native API testing, faster execution, better CI integration. Cypress's dashboard paywall and slower execution are drawbacks | Use Playwright. It handles both API and browser testing in one framework |
+| **Database seeding fixtures** | "Pre-populate test data" | Kterodactyl stores users in K8s Secrets and servers as CRDs -- there is no database. K8s fixtures are created via API calls. Database seeding patterns do not apply | Use API calls or kubectl to create test state. Playwright auth fixtures handle user state |
+| **Component testing (Storybook/Playwright CT)** | "Test React components in isolation" | Adds build tooling complexity. The codebase uses shadcn/ui components that are thin wrappers. Value is in integration, not component isolation | If component tests are wanted later, use Vitest + React Testing Library. Not part of this E2E milestone |
+| **Test environment parity with production** | "Match production exactly" -- Talos cluster, Cilium CNI, Gateway API controller | Production has Talos + Cilium + Cloudflare Tunnels. Reproducing this in CI is extremely expensive and fragile. Kind with default CNI tests the operator logic that matters | Use kind with standard configuration. Document any known behavioral differences between kind and Talos |
+| **Auto-generating tests from OpenAPI spec** | "Generate test cases from API definition" | Kterodactyl does not have an OpenAPI spec. Creating one just for test generation inverts the dependency. The manually written tests are better tailored to business logic | Write tests manually. If an OpenAPI spec is needed later, generate it from code, not the other way around |
 
 ## Feature Dependencies
 
 ```
-Server Lifecycle Management (foundational)
-    ├──requires──> GameServer CRD
-    │
-    └──enables──> Scheduled Tasks
-                  Real-time Console Access
-                  Resource Monitoring
+Kind Cluster Lifecycle (foundation)
+    |-- requires --> Docker, kind binary, Helm chart, container image build
+    |
+    +-- enables --> Go E2E Tests (CRD/controller validation)
+    |               Playwright E2E Tests (full-stack browser tests)
+    |               Helm Chart Validation Tests
 
-User Management (foundational)
-    ├──requires──> Authentication System
-    │
-    └──enables──> RBAC
-                  Multi-tenancy
-                  Subuser Access
+Go API Integration Tests (layer 2)
+    |-- requires --> Existing httptest helpers, untested handler stubs
+    |-- depends on -> Kind Cluster (for real-cluster integration variant)
+    |
+    +-- enables --> Coverage reporting, test backlog tracking
 
-Game Definitions (foundational)
-    ├──requires──> Dockerfile + Manifest Schema
-    │
-    └──enables──> Server Installation
-                  Game Configuration UI
-                  Community Contributions
+Playwright Setup (layer 2)
+    |-- requires --> Node.js, Playwright browsers, playwright.config.ts
+    |-- depends on -> Running backend (via kind or local process)
+    |
+    +-- enables --> Auth Fixtures (storageState)
+    |               Browser E2E Tests (user flows)
+    |               Visual Regression (screenshot baselines)
 
-File Manager
-    ├──requires──> SFTP Access (underlying)
-    │
-    └──enhances──> Game Configuration
+Auth Fixtures (layer 3)
+    |-- requires --> Playwright setup, running /api/v1/auth/login endpoint
+    |
+    +-- enables --> All authenticated browser tests (server CRUD, admin, console)
 
-Backup Creation
-    ├──requires──> S3 Integration (optional)
-    │
-    └──enables──> Scheduled Backups
-                  Disaster Recovery
+GitHub Actions Pipeline (layer 3)
+    |-- requires --> Kind lifecycle, Go tests, Playwright setup
+    |
+    +-- enables --> PR checks, failure artifact collection, parallel execution
 
-Prometheus Metrics
-    ├──requires──> Operator Instrumentation
-    │
-    └──enables──> Grafana Dashboards
-                  Alerting
+Test Backlog (layer 4, can start anytime)
+    |-- requires --> Nothing (pure documentation)
+    |
+    +-- enables --> Coverage gap tracking, prioritization
 ```
 
 ### Dependency Notes
 
-- **GameServer CRD is foundational** — Without this, there's no Kubernetes-native server representation. Must be in Phase 1.
-- **Authentication gates all user features** — Basic auth/signup must exist before RBAC, multi-tenancy, or subusers.
-- **Game definitions enable variety** — Without declarative game definitions, only one game type is supported. Critical for community contributions.
-- **SFTP is lower-level than file manager** — File manager is a UI over SFTP/file access; SFTP should exist first for power users.
-- **Backup storage affects scheduling** — S3 integration should exist before automated backups to avoid local-disk-only limitation.
-- **Metrics must be instrumented early** — Prometheus metrics hard to retrofit; should be in operator from start.
+- **Kind cluster is foundational**: Without a real cluster, neither Go E2E nor Playwright E2E tests can validate real K8s behavior. Must be first.
+- **Go API integration tests can begin immediately**: Extending existing httptest patterns for untested handlers (mods, backups, console, metrics) does not require kind. Real-cluster variants do.
+- **Playwright depends on a running backend**: Either port-forwarded from kind or run locally. The `webServer` config in Playwright can start the backend automatically.
+- **Auth fixtures depend on Playwright setup**: Cannot create storageState files without Playwright installed and a backend to authenticate against.
+- **GitHub Actions ties everything together**: The pipeline definition depends on all test tiers being defined so it can orchestrate them.
 
-## MVP Definition
+## MVP Recommendation
 
-### Launch With (v1.0)
+### Must Build (v1.1 Test Suite Core)
 
-Minimum viable product — what's needed to validate the concept with homelab users.
+Prioritize these features. Without them, the test suite provides no real value over what already exists.
 
-- [x] **GameServer CRD + Operator** — Core Kubernetes-native infrastructure
-- [x] **Single Game Support (Minecraft)** — Proves declarative game definition works
-- [x] **Web UI: Create/Start/Stop/Delete Servers** — Basic lifecycle management
-- [x] **Real-time Console Access** — Essential for debugging and administration
-- [x] **Basic Auth + User Signup** — Simple user management (admin can invite)
-- [x] **Per-server DNS Names** — Key differentiator, validates k8s-native approach
-- [x] **Resource Limits (CPU/RAM/Disk)** — Global limits prevent cluster abuse
-- [x] **Connection Info Display** — Show DNS + port to users
-- [x] **Manual Backup Creation** — On-demand backups to local storage
-- [ ] **Documentation: Installation + Game Definition Guide** — Enable early adopters
+1. **Kind cluster lifecycle in Makefile** -- `make test-e2e-setup`, `make test-e2e-teardown` with Helm chart deploy, image load, CRD install. LOW complexity. Foundation for everything.
+2. **Go API integration tests for untested handlers** -- Add test files for `handlers_mods.go`, `handlers_backups.go`, `handlers_metrics.go`. Skip `handlers_console.go` (WebSocket needs different approach). MEDIUM complexity. Fills biggest coverage gap using existing patterns.
+3. **Playwright installation and configuration** -- `playwright.config.ts`, browser install, `webServer` config to launch backend. MEDIUM complexity. Unlocks all browser testing.
+4. **Playwright auth fixtures** -- storageState for admin and regular user roles. LOW complexity once Playwright is set up. Required by all authenticated tests.
+5. **Core Playwright user journey tests** -- Login, create server, view server list, manage server (start/stop), delete server, admin panel. HIGH complexity (most test code). This is the primary deliverable.
+6. **GitHub Actions pipeline** -- Single workflow that runs: lint -> unit tests -> build image -> kind setup -> Go e2e -> Playwright e2e -> teardown. MEDIUM complexity. Makes the suite actually useful on PRs.
+7. **Test backlog tracking** -- Markdown file listing all untested features with priority. LOW complexity. Creates roadmap for future test coverage.
 
-**Rationale:** This is the absolute minimum to let homelab users spin up a Minecraft server with a better UX than Pterodactyl. Validates Kubernetes-native approach and DNS differentiation.
+### Defer (Future Test Enhancements)
 
-### Add After Validation (v1.x)
+- **Go binary coverage (`go build -cover`)**: Valuable but adds build complexity. Do after core suite works.
+- **Visual regression baselines**: Requires stable UI. Add after Playwright tests are green.
+- **WebSocket console E2E test**: Requires real GameServer pod running (image pull, startup time). Complex and slow. Add after core flows work.
+- **Parallel CI execution**: Optimize after the serial pipeline proves reliable.
+- **Helm chart validation tests**: Nice but low priority. The chart already works in production.
 
-Features to add once core is working and users confirm value.
+## Complexity Budget
 
-- [ ] **Multi-Game Support** — Add 3-5 popular games (Valheim, Terraria, Palworld)
-- [ ] **SFTP Access** — Direct file access for power users
-- [ ] **Web-based File Manager** — Edit configs without SFTP client
-- [ ] **Scheduled Tasks** — Automate restarts, backups
-- [ ] **S3-Compatible Backup Storage** — Cloud backup support
-- [ ] **Prometheus Metrics Export** — Observability for cluster operators
-- [ ] **RBAC (Subusers)** — Share server access with friends
-- [ ] **Game Configuration UI** — Forms for common game settings
-- [ ] **Community Game Definitions (PR process)** — Accept first community contributions
-- [ ] **OIDC Authentication** — SSO for users with existing identity providers
+Estimated effort for the MVP test features, based on codebase analysis:
 
-**Trigger for adding:** 10+ active homelab users successfully running servers, positive feedback on core UX, at least 2 requests for multi-game support.
-
-### Future Consideration (v2.0+)
-
-Features to defer until product-market fit is established.
-
-- [ ] **Multi-tenancy (Organizations)** — Full isolation between user groups
-- [ ] **Mod Manager UI** — In-panel Workshop/Nexus integration
-- [ ] **Advanced RBAC Policies** — Per-resource permission granularity
-- [ ] **Fleet Autoscaling** — Agones-style dynamic scaling
-- [ ] **Automated Backup Rotation** — Smart retention policies
-- [ ] **Audit Logging** — Compliance and security tracking
-- [ ] **Webhook Integrations** — Discord, Slack, etc. notifications
-- [ ] **Custom Game Definition Validation** — CI/CD for community PRs
-- [ ] **High Availability Operator** — Multi-replica operator deployment
-
-**Why defer:** These are valuable for larger deployments (hosting providers, large clans) but add significant complexity. Validate core value proposition with hobbyists first.
-
-## Feature Prioritization Matrix
-
-| Feature | User Value | Implementation Cost | Priority | Phase |
-|---------|------------|---------------------|----------|-------|
-| GameServer CRD + Operator | HIGH | HIGH | P1 | v1.0 |
-| Server Lifecycle (Start/Stop) | HIGH | MEDIUM | P1 | v1.0 |
-| Real-time Console | HIGH | MEDIUM | P1 | v1.0 |
-| Per-server DNS | HIGH | MEDIUM | P1 | v1.0 |
-| Basic Auth + Signup | HIGH | LOW | P1 | v1.0 |
-| Single Game Support | HIGH | MEDIUM | P1 | v1.0 |
-| Manual Backups | MEDIUM | MEDIUM | P1 | v1.0 |
-| Resource Limits | HIGH | LOW | P1 | v1.0 |
-| Multi-Game Support | HIGH | MEDIUM | P2 | v1.1 |
-| SFTP Access | MEDIUM | LOW | P2 | v1.1 |
-| File Manager (Web) | HIGH | MEDIUM | P2 | v1.2 |
-| Scheduled Tasks | MEDIUM | MEDIUM | P2 | v1.2 |
-| S3 Backups | MEDIUM | MEDIUM | P2 | v1.3 |
-| Prometheus Metrics | MEDIUM | MEDIUM | P2 | v1.3 |
-| RBAC (Subusers) | MEDIUM | HIGH | P2 | v1.4 |
-| Game Config UI | MEDIUM | HIGH | P2 | v1.5 |
-| OIDC Auth | LOW | MEDIUM | P3 | v2.0 |
-| Multi-tenancy | LOW | HIGH | P3 | v2.0 |
-| Fleet Autoscaling | LOW | HIGH | P3 | v2.1 |
-| Mod Manager UI | MEDIUM | HIGH | P3 | v2.2 |
-
-**Priority key:**
-- P1: Must have for launch — validates core concept
-- P2: Should have — completes feature parity with competitors
-- P3: Nice to have — advanced use cases, defer until PMF
-
-## Competitor Feature Analysis
-
-| Feature | Pterodactyl | AMP | TCAdmin | Agones | WindowsGSM/LinuxGSM | Kterodactyl |
-|---------|-------------|-----|---------|--------|---------------------|-------------|
-| **Architecture** | PHP/React/Go, Docker | C#, multi-platform | .NET, Windows/Linux | Go, K8s-native | CLI tools | Go operator, K8s-native |
-| **Open Source** | ✅ Yes (MIT) | ❌ Paid | ❌ Paid | ✅ Yes (Apache 2.0) | ✅ Yes | ✅ Yes (planned MIT) |
-| **Server Lifecycle** | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Planned |
-| **Real-time Console** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ SDK only | ❌ CLI | ✅ Planned |
-| **Web File Manager** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ N/A | ❌ CLI | ✅ Planned v1.x |
-| **SFTP Access** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ N/A | ✅ Yes | ✅ Planned v1.x |
-| **Scheduled Tasks** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ N/A | ✅ Yes | ✅ Planned v1.x |
-| **Backups** | ✅ Manual + Scheduled | ✅ Auto + S3 | ✅ Full | ❌ External | ✅ Manual | ✅ Planned (S3 v1.x) |
-| **User Management** | ✅ Subusers + RBAC | ✅ Full RBAC | ✅ Full RBAC | ❌ K8s RBAC | ❌ Single user | ✅ Basic v1.0, RBAC v1.x |
-| **Multi-tenancy** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Namespaces | ❌ No | ✅ Planned v2.0 |
-| **Resource Limits** | ✅ Per-server | ✅ Per-server | ✅ Per-server | ✅ K8s native | ❌ No | ✅ K8s native v1.0 |
-| **Monitoring** | ⚠️ Basic | ✅ Advanced | ✅ Advanced | ✅ Prometheus | ❌ No | ✅ Prometheus v1.x |
-| **API Access** | ✅ REST API | ✅ REST API | ✅ REST API | ✅ K8s API | ❌ No | ✅ K8s API + REST (planned) |
-| **Game Definitions** | ⚠️ Eggs (complex JSON) | ⚠️ Modules (proprietary) | ⚠️ Configs (proprietary) | ❌ N/A | ⚠️ Scripts (fragmented) | ✅ Dockerfile + YAML (simple) |
-| **Community Contributions** | ✅ Yes (high barrier) | ❌ No | ❌ No | ❌ N/A | ⚠️ Fragmented | ✅ PR to main repo (low barrier) |
-| **DNS per Server** | ❌ No | ❌ No | ❌ No | ❌ No | ❌ No | ✅ Yes (unique!) |
-| **Kubernetes-native** | ❌ No (Docker) | ❌ No | ❌ No | ✅ Yes (enterprise) | ❌ No | ✅ Yes (hobbyist-focused) |
-| **Billing Integration** | ⚠️ Via modules | ✅ Built-in | ✅ Built-in | ❌ N/A | ❌ No | ❌ Anti-feature |
-| **Target Audience** | Hosting providers | Hosters + hobbyists | Enterprise hosters | K8s operators | Single-server admins | Homelab to clusters |
-
-### Competitive Positioning
-
-**Pterodactyl** is the dominant open-source panel but:
-- Not Kubernetes-native (Docker-based)
-- Complex multi-service architecture (PHP panel + Go daemon + React frontend)
-- Egg system has high contribution barrier (complex JSON schemas)
-- No built-in DNS per server
-
-**AMP/TCAdmin** are commercial, feature-rich, but:
-- Paid licensing (per-server or monthly)
-- Not Kubernetes-native
-- Closed-source, no community game definitions
-
-**Agones** is Kubernetes-native but:
-- Enterprise-focused (Google-backed, targets game studios)
-- No web UI, no hobbyist UX
-- Requires deep Kubernetes knowledge
-- Lacks basic panel features (console, file manager, backups)
-
-**WindowsGSM/LinuxGSM** are lightweight but:
-- CLI-only, no web interface
-- Single-server focus, no multi-tenancy
-- Fragmented game support (community scripts)
-
-**Kterodactyl's differentiation:**
-- **Kubernetes-native for hobbyists** — Brings Agones-level architecture to homelab users
-- **Per-server DNS names** — Unique UX feature no competitor has
-- **Simple game definitions** — Dockerfile + YAML vs complex JSON/modules
-- **Open-source first** — No licensing costs, community-driven
-- **GitOps-ready** — Manage servers with `kubectl apply` (appeals to DevOps crowd)
-
-## Research Confidence Assessment
-
-| Area | Confidence | Source Quality | Notes |
-|------|------------|----------------|-------|
-| **Pterodactyl features** | HIGH | Official docs + GitHub + community reviews | Well-documented, mature project; feature set confirmed across multiple sources |
-| **AMP features** | MEDIUM | Official site + comparison articles | Less detailed docs publicly available; confirmed via hosting provider reviews |
-| **TCAdmin features** | MEDIUM | Official site + user forums | Limited public documentation; confirmed as industry standard for commercial hosts |
-| **Agones features** | HIGH | Official docs + Google blog | Excellent documentation; confirmed K8s-native architecture and limitations |
-| **WindowsGSM/LinuxGSM** | MEDIUM | GitHub repos + community forums | Open-source, but feature set varies by community contributions |
-| **Table stakes vs differentiators** | MEDIUM | Cross-referenced 5+ panels | Consistent patterns emerge, but "expected" varies by user segment (hobbyist vs commercial host) |
-| **Anti-features** | LOW | Training data + logical analysis | No authoritative source; based on scope creep analysis and competitor positioning |
-
-**Overall Confidence:** MEDIUM
-
-**Limitations:**
-- Most sources are from early 2026; panels evolve quickly
-- Commercial panels (AMP/TCAdmin) have limited public documentation
-- "Table stakes" is subjective — differs for hobbyists vs hosting providers
-- Anti-features based on analysis, not direct user feedback
-
-**Verification Recommendations:**
-- Interview 3-5 homelab users currently running Pterodactyl
-- Test-drive AMP/TCAdmin trial versions for first-hand feature audit
-- Survey r/homelab for "must-have" vs "nice-to-have" panel features
+| Feature | Files to Create/Modify | Estimated LOC | Risk |
+|---------|----------------------|---------------|------|
+| Kind lifecycle | Makefile + kind-config.yaml + test scripts | ~150 | LOW: well-understood pattern |
+| Go API integration tests | 4 new test files + helpers | ~600 | LOW: follows existing `helpers_test.go` pattern |
+| Playwright setup | playwright.config.ts + package.json + fixtures | ~200 | MEDIUM: first-time setup, browser install in CI |
+| Playwright auth fixtures | auth.setup.ts + 2 storageState files | ~100 | LOW: well-documented Playwright pattern |
+| Playwright E2E tests | 5-7 test spec files | ~800 | HIGH: most code, depends on real UI behavior |
+| GitHub Actions pipeline | 1-2 workflow YAML files | ~200 | MEDIUM: complex orchestration, debugging CI is slow |
+| Test backlog | 1 markdown file | ~100 | LOW: documentation only |
+| **Total** | **~15-20 files** | **~2,150** | |
 
 ## Sources
 
-### Pterodactyl
-- [Pterodactyl Official Site](https://pterodactyl.io/)
-- [GitHub - Pterodactyl Panel](https://github.com/pterodactyl/panel)
-- [Pterodactyl Introduction Docs](https://pterodactyl.io/project/introduction.html)
-- [Creating Custom Pterodactyl Eggs](https://pterodactyl.io/community/config/eggs/creating_a_custom_egg.html)
-- [Pterodactyl API Documentation](https://pterodactyl-api-docs.netvpx.com/)
-- [How to Create Sub-users in Pterodactyl](https://www.lazerhosting.com/billing/knowledgebase/5/How-to-Create-Sub-users-in-Pterodactyl-A-Comprehensive-Guide-for-Beginners.html)
+### Playwright
+- [Playwright Official Docs - Authentication](https://playwright.dev/docs/auth) -- storageState pattern for login reuse
+- [Playwright CI Integration](https://playwright.dev/docs/ci) -- GitHub Actions setup
+- [Playwright Web Server Config](https://playwright.dev/docs/test-webserver) -- auto-start backend before tests
+- [Playwright API Testing](https://playwright.dev/docs/api-testing) -- combined API + browser testing
 
-### AMP (Application Management Panel)
-- [AMP Official Site](https://cubecoders.com/AMP)
-- [AMP vs. Pterodactyl Comparison](https://blog.atomicnetworks.co/cloud/comparisons/amp-vs-pterodactyl)
-- [Installing AMP for Game Server Management](https://www.linode.com/docs/guides/installing-amp-game-server-management-panel/)
+### Kubernetes E2E Testing
+- [Kubebuilder E2E Testing Docs](https://github.com/kubernetes-sigs/kubebuilder/blob/master/docs/testing/e2e.md) -- scaffolded e2e patterns
+- [Running K8s E2E Tests with Kind and GitHub Actions](https://radu-matei.com/blog/kubernetes-e2e-github-actions/) -- kind + GH Actions setup
+- [Testing Kubernetes Operators with GitHub Actions and Kind](https://medium.com/codex/testing-kubernetes-operators-using-github-actions-and-kind-c4086d37dd30) -- operator-specific CI patterns
+- [Kubebuilder Issue #5155](https://github.com/kubernetes-sigs/kubebuilder/issues/5155) -- replacing kubectl calls with controller-runtime client in e2e
 
-### TCAdmin
-- [TCAdmin Official Site](https://www.tcadmin.com/)
-- [TCAdmin Features](https://www.tcadmin.com/features/)
-- [TCAdmin Documentation](https://docs.tcadmin.com)
+### Go Coverage
+- [Go Official: Coverage for Integration Tests](https://go.dev/doc/build-cover) -- `go build -cover` documentation
+- [Go Blog: Integration Test Coverage](https://go.dev/blog/integration-test-coverage) -- `GOCOVERDIR` and `go tool covdata` workflow
+- [Go 1.20 Coverage for K8s Apps](https://www.mgasch.com/2023/02/go-e2e/) -- practical guide for K8s operator coverage
 
-### Agones
-- [Agones Official Site](https://agones.dev/site/)
-- [Agones Overview](https://agones.dev/site/docs/overview/)
-- [GitHub - Agones](https://github.com/googleforgames/agones)
-- [Introducing Agones - Google Cloud Blog](https://cloud.google.com/blog/products/containers-kubernetes/introducing-agones-open-source-multiplayer-dedicated-game-server-hosting-built-on-kubernetes)
-
-### WindowsGSM/LinuxGSM
-- [LinuxGSM Official Site](https://linuxgsm.com/)
-- [GitHub - LinuxGSM](https://github.com/GameServerManagers/LinuxGSM)
-- [GitHub - WindowsGSM](https://github.com/WindowsGSM/WindowsGSM)
-- [WindowsGSM Documentation](https://docs.windowsgsm.com/)
-
-### General Panel Features & Comparisons
-- [Top 10+ Best Pterodactyl Alternatives in 2026](https://satisfyhost.com/blog/best-pterodactyl-alternatives/)
-- [Best Game Server Control Panels](https://www.ghostcap.com/game-server-control-panels)
-- [Benchmarking Pterodactyl vs Other Control Panels](https://lazerhosting.com/billing/knowledgebase/42/Benchmarking-Pterodactyl-vs-Other-Control-Panels.html?language=english)
-- [The Beginner Guide To Game Server Control Panels](https://topserver.network/the-beginners-guide-to-game-server-control-panels-for-game-hosting/)
-
-### Specific Feature Research
-- [Game Server Panel Mod Management](https://steamcommunity.com/sharedfiles/filedetails/?id=3422448677)
-- [Server Quotas & Load Balancing - GSP-Panel](https://wiki.gsp-panel.com/features:server_quotas_load_balancing)
-- [Server Monitoring with Prometheus and Grafana](https://www.cherryservers.com/blog/server-monitoring-prometheus-grafana)
-- [Game Panel Database Management](https://xgamingserver.com/blog/how-to-use-and-connect-to-the-game-panel-database-using-mysql-workbench/)
-- [Accessing Files via SFTP and File Manager](https://pingperfect.com/knowledgebase/19/Accessing-your-files--File-manager--FTP--SFTP.html)
+### Testing Best Practices
+- [BrowserStack: Playwright Best Practices 2026](https://www.browserstack.com/guide/playwright-best-practices) -- role-based locators, test isolation
+- [Microsoft Engineering Playbook: E2E Testing](https://microsoft.github.io/code-with-engineering-playbook/automated-testing/e2e-testing/) -- testing pyramid, CI integration
+- [EnvTest Practical Guide](https://blog.marcnuri.com/go-testing-kubernetes-applications-envtest) -- Go K8s testing with envtest
 
 ---
-*Feature research for: Kterodactyl - Kubernetes-native Game Server Management Panel*
-*Researched: 2026-02-09*
+*Feature research for: Kterodactyl v1.1 E2E CI/CD Test Suite*
+*Researched: 2026-02-17*
 *Researcher: GSD Project Researcher Agent*

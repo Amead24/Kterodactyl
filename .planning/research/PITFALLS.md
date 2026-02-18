@@ -1,370 +1,631 @@
-# Pitfalls Research
+# Domain Pitfalls: E2E CI/CD Test Suite
 
-**Domain:** K8s-native game server management panel
-**Researched:** 2026-02-09
-**Confidence:** HIGH
+**Domain:** Adding Playwright E2E tests, Go API integration tests, kind-based test environments, and GitHub Actions CI to a Kubernetes operator project (v1.1 -- first test suite for a project with zero tests)
+**Researched:** 2026-02-17
+**Confidence:** HIGH (multiple verified sources, project-specific analysis)
+
+---
 
 ## Critical Pitfalls
 
-### Pitfall 1: CRD Storage Version Removal Without Migration
+Mistakes that cause rewrites, multi-day debugging sessions, or permanently flaky CI.
+
+---
+
+### Pitfall 1: EnvTest Cached Client Causes Flaky Assertions
 
 **What goes wrong:**
-Removing a CRD version that is listed as a stored version on existing CRDs causes immediate data loss. All existing custom resources stored in that version become inaccessible or corrupted.
+Controller integration tests pass 80% of the time but randomly fail with "expected state X, got state Y" errors. The test creates a resource, immediately reads it back, and gets stale data. Developers add `time.Sleep` everywhere, making tests slow and still intermittently failing.
 
 **Why it happens:**
-Developers treat CRD versioning like API versioning and assume removing an old version is safe after deprecation. They don't realize that etcd still stores resources in the old schema format.
+The kubebuilder-scaffolded `suite_test.go` uses `k8sManager.GetClient()` which returns a cached client backed by informer caches. The informer cache depends on etcd watches for updates, so after creating or deleting objects, the cache takes milliseconds to seconds to sync. Tests asserting against cache contents instead of live API server state get stale reads.
 
-**How to avoid:**
-1. Introduce new CRD version while keeping storage version stable
-2. Create StorageVersionMigration to convert all stored resources from old to new version
-3. Verify all resources migrated using `kubectl get <crd> -o jsonpath='{.items[*].metadata.managedFields[*].apiVersion}'`
-4. Update CRD status to mark old version as non-stored
-5. Only then remove old version from CRD spec
+The existing `internal/controller/suite_test.go` in Kterodactyl already uses this pattern -- the `k8sClient` variable is likely the manager's cached client.
 
-**Warning signs:**
-- CRD updates showing "stored version in use" errors
-- Resources returning old API versions unexpectedly
-- Version field in CRD status shows versions not marked as stored
+**Consequences:**
+- Tests pass locally but fail in CI (resource-constrained runners have slower cache sync)
+- Developers add arbitrary `time.Sleep` calls that slow the suite without fixing the root cause
+- Eventually, team marks tests as "known flaky" and ignores failures, defeating the purpose of CI
 
-**Phase to address:**
-Phase 1 (Core CRD Design) - Implement StorageVersionMigration strategy from start
+**Prevention:**
+1. Create a **separate "live" client** for test assertions that reads directly from the API server, not the cache:
+   ```go
+   // In suite_test.go BeforeSuite
+   k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})  // live client
+   // NOT: k8sClient = k8sManager.GetClient()  // cached client
+   ```
+2. Always use `Eventually` / `Consistently` for assertions after mutations -- never bare `Expect` after Create/Update/Delete
+3. Use `Eventually` with a function that re-fetches the resource on each poll:
+   ```go
+   Eventually(func(g Gomega) {
+       gs := &v1alpha1.GameServer{}
+       g.Expect(k8sClient.Get(ctx, key, gs)).To(Succeed())
+       g.Expect(gs.Status.State).To(Equal(v1alpha1.GameServerStateStarting))
+   }, timeout, interval).Should(Succeed())
+   ```
+4. Run `go test -race` and `ginkgo --until-it-fails` to surface race conditions before they hit CI
+
+**Detection:**
+- Test passes in isolation but fails in parallel or in CI
+- Adding `time.Sleep(500ms)` "fixes" the test
+- Different results with `-count=1` vs `-count=10`
+
+**Phase to address:** Phase 1 (Go unit/integration tests) -- fix the test client setup before writing any new tests
+
+**Confidence:** HIGH -- documented in [Kubebuilder Book](https://book.kubebuilder.io/cronjob-tutorial/writing-tests), [InfraCloud EnvTest Guide](https://www.infracloud.io/blogs/testing-kubernetes-operator-envtest/), [SuperOrbital Testing Production Controllers](https://superorbital.io/blog/testing-production-controllers/)
 
 ---
 
-### Pitfall 2: Missing Conversion Webhooks for Schema Changes
+### Pitfall 2: EnvTest Cannot Delete Namespaces -- Tests Contaminate Each Other
 
 **What goes wrong:**
-Schema changes across CRD versions break without conversion webhooks. Old stored resources can't be retrieved in new versions, causing 500 errors. Even if old versions aren't actively served, conversion hooks are required to convert stored old-version CRs in etcd to the latest version.
+Test A creates namespace `test-ns-1` with resources. Test B runs in `test-ns-2`. But the controller is still reconciling resources from `test-ns-1` because namespace deletion in envtest only sets the namespace to `Terminating` state -- it never actually reclaims it. The controller processes leftover resources from previous tests, causing unexpected state and failures.
 
 **Why it happens:**
-Teams underestimate the need for conversion logic, assuming structural schema migrations handle it automatically. They don't realize Kubernetes needs explicit instructions to convert between versions.
+EnvTest runs a real kube-apiserver and etcd but has no kubelet, no garbage collector, and no namespace controller. When you `kubectl delete ns`, the namespace enters `Terminating` but never completes deletion. Resources inside the "deleted" namespace remain, and the controller's informer cache still sees them. The existing test file `gameserver_controller_test.go` uses separate namespaces per test (`test-ns-1` through `test-ns-7`) but relies on `AfterEach` cleanup which may not fully work.
 
-**How to avoid:**
-- Implement hub-and-spoke conversion model: all versions convert through one internal "hub" version
-- Add conversion webhook server alongside operator from v1alpha1 → v1beta1 transition
-- Test conversion in both directions (old→new and new→old) for roundtrip fidelity
-- Use kubebuilder markers: `// +kubebuilder:storageversion` and conversion webhook boilerplate
+**Consequences:**
+- Tests that pass individually fail when run together
+- Controller reconciles resources from a "previous" test, causing mysterious state transitions
+- Namespace reuse across test runs fails with "already exists" errors
+- CI becomes unreliable without anyone understanding why
 
-**Warning signs:**
-- Error "conversion webhook for <crd> not found"
-- Resources can't be listed after CRD upgrade
-- `kubectl get` works but API calls return conversion errors
+**Prevention:**
+1. **Generate unique namespace names per test run** using random suffixes:
+   ```go
+   testNs := fmt.Sprintf("test-%s-%s", t.Name(), rand.String(6))
+   ```
+2. **Clean up all resources explicitly** in AfterEach/AfterAll -- do not rely on namespace deletion
+3. **Delete individual resources** (GameServer CRs, Pods, Services) rather than deleting the namespace
+4. **Wait for deletions to complete** with `Eventually` before proceeding:
+   ```go
+   Eventually(func() bool {
+       err := k8sClient.Get(ctx, key, &v1alpha1.GameServer{})
+       return errors.IsNotFound(err)
+   }, timeout, interval).Should(BeTrue())
+   ```
+5. Consider scoping the reconciler to a specific namespace during tests to prevent cross-contamination
 
-**Phase to address:**
-Phase 1 (Core CRD Design) - Scaffold conversion webhook infrastructure even if v1alpha1 doesn't need it yet
+**Detection:**
+- `go test ./internal/controller/ -count=1` passes but `go test ./internal/controller/ -count=3` fails
+- Different test ordering produces different results
+- Tests reference resources they did not create
+
+**Phase to address:** Phase 1 (Go integration tests) -- establish namespace isolation pattern before writing new tests
+
+**Confidence:** HIGH -- documented in [Kubebuilder EnvTest reference](https://book.kubebuilder.io/reference/envtest): "envtest does not support namespace deletion"
 
 ---
 
-### Pitfall 3: Non-Idempotent Reconciliation Logic
+### Pitfall 3: Kind Cluster Image Loading Timeout in CI
 
 **What goes wrong:**
-Controllers that aren't idempotent create duplicate resources, fail on retries, or get stuck in crash loops. Reconciliation can be triggered multiple times for the same resource, and non-idempotent logic causes divergence between desired and actual state.
+The e2e test workflow times out during `kind load docker-image` because the operator image is large (Go binary + embedded React SPA + game manifests). On GitHub Actions runners with limited I/O bandwidth, loading a 200MB+ image into the kind cluster takes 3-5 minutes. Combined with cluster creation, CRD installation, and Helm deploy, the test exceeds the job timeout.
 
 **Why it happens:**
-Developers write reconciliation like event handlers ("something changed, do X") instead of declarative state enforcement ("desired state is Y, make it so"). Event-driven selective reconciliation is tempting but violates controller-runtime design principles.
+`kind load docker-image` exports the Docker image as a tarball, transfers it into the kind node container, then imports it into containerd. This involves serializing the entire image to disk, then copying it through Docker's API. For the Kterodactyl image (multi-stage build with Node.js frontend + Go backend), the uncompressed layers are substantial. The existing `test-e2e.yml` workflow has no caching, no image size optimization for test builds, and no timeout configuration.
 
-**How to avoid:**
-1. Always reconcile ALL resources, regardless of triggering event
-2. Read current state, compare to desired state, calculate diff, apply changes
-3. Make operations idempotent: creating existing resources = no-op, deleting missing resources = no-op
-4. Use `controllerutil.CreateOrUpdate()` instead of separate Create/Update calls
-5. Avoid storing state in memory - always read from API server
+**Consequences:**
+- E2E tests take 10-15 minutes before any test code even runs
+- Job exceeds GitHub Actions 6-hour limit on complex test matrices
+- Developers stop running e2e tests because "they take too long"
+- Flaky timeouts on CI but not locally (faster I/O)
 
-**Warning signs:**
-- Duplicate game server pods created on every reconciliation
-- "AlreadyExists" errors in controller logs
-- Resources requiring manual deletion to unstick reconciliation
-- Reconciliation succeeds once but fails on retry
+**Prevention:**
+1. **Build a test-specific image** that skips unnecessary layers (no frontend for API-only e2e tests):
+   ```dockerfile
+   # Dockerfile.test -- smaller image for CI
+   FROM golang:1.25 AS builder
+   COPY . .
+   RUN CGO_ENABLED=0 go build -o manager cmd/main.go
+   FROM gcr.io/distroless/static:nonroot
+   COPY --from=builder /workspace/manager .
+   COPY --from=builder /workspace/games /games
+   ```
+2. **Use `kind load image-archive`** with pre-built tarballs instead of `kind load docker-image` -- avoids double-serialization
+3. **Use a local registry** instead of image loading:
+   ```yaml
+   # kind-config.yaml
+   containerdConfigPatches:
+   - |-
+     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5001"]
+       endpoint = ["http://kind-registry:5001"]
+   ```
+4. **Cache Docker build layers** in GitHub Actions:
+   ```yaml
+   - uses: docker/build-push-action@v6
+     with:
+       cache-from: type=gha
+       cache-to: type=gha,mode=max
+   ```
+5. **Set `imagePullPolicy: Never`** in test manifests to prevent kind from trying to pull from remote registries
+6. **Add `--wait 5m`** to `kind create cluster` to give the control plane time to stabilize
 
-**Phase to address:**
-Phase 1 (Operator Core) - Code review checklist item: "Is this reconciliation idempotent?"
+**Detection:**
+- E2E job takes >10 minutes before first test assertion
+- "context deadline exceeded" or timeout errors during image load
+- Sporadic "image not found" errors despite successful `kind load`
+
+**Phase to address:** Phase 3 (kind-based E2E environment setup) -- design the image loading strategy before writing e2e tests
+
+**Confidence:** HIGH -- documented in [kind issue #3002](https://github.com/kubernetes-sigs/kind/issues/3002), [kind issue #2922](https://github.com/kubernetes-sigs/kind/issues/2922), [iximiuz blog](https://iximiuz.com/en/posts/kubernetes-kind-load-docker-image/)
 
 ---
 
-### Pitfall 4: UDP Port Allocation Conflicts and Exhaustion
+### Pitfall 4: Playwright Waiting on Kubernetes State Changes -- False Timeouts and Flaky Tests
 
 **What goes wrong:**
-Game servers can't bind to ports, preventing players from connecting. Kubernetes lacks automatic hostPort assignment - ports must be specified by user, causing conflicts. With hostNetwork: true, if ReplicaController specifies 3 replicas on 2 nodes with fixed port 9999, only 2 pods succeed.
+Playwright E2E test creates a game server via the UI, then asserts the server shows "Ready" status. The test times out because the underlying Kubernetes Pod takes 30-120 seconds to pull an image, start, and become ready. Playwright's default 30-second timeout fires before the k8s state transition completes. Alternatively, the test passes when the cluster is warm (image cached) but fails on fresh CI clusters.
 
 **Why it happens:**
-Teams use hostNetwork or hostPort for low latency without implementing port allocation strategy. They assume Kubernetes handles port conflicts like it does with ClusterIP services.
+Playwright's auto-waiting only waits for DOM elements to be actionable -- it has no awareness of Kubernetes reconciliation loops, Pod scheduling, or image pulls happening behind the scenes. The Kterodactyl architecture has a multi-hop latency path: UI action -> API call -> CRD mutation -> controller reconciliation -> Pod creation -> Pod scheduling -> container start -> status update -> API poll -> UI update. Each hop adds variable latency, and Playwright has no way to know how long the full chain takes.
 
-**How to avoid:**
-- Implement dynamic port allocation (like Agones DynamicPort strategy)
-- Use port pool per node tracked in CRD status (e.g., NodePortPool CRD)
-- Prefer host port forwarding over hostNetwork for namespace isolation and security
-- Pre-allocate port ranges per game type to avoid exhaustion
-- Track allocated ports in GameServer status to prevent double-booking
-- Set pod anti-affinity for game servers requiring same port on different nodes
+**Consequences:**
+- Tests fail intermittently in CI (cold image cache) but pass locally (warm cache)
+- Developers increase global timeout to 5 minutes, making test failures take forever to surface
+- Real bugs are masked by "expected" timeouts
+- Test suite becomes untrusted -- nobody believes red CI means real failure
 
-**Warning signs:**
-- Pods stuck in "ContainerCreating" with port binding errors
-- Game server pods assigned to nodes then immediately evicted
-- Port conflict errors in kubelet logs
-- CNI plugin doesn't support hostPort (like Terway)
+**Prevention:**
+1. **Use `page.waitForResponse`** to wait for specific API responses instead of DOM polling:
+   ```typescript
+   const responsePromise = page.waitForResponse(
+     resp => resp.url().includes('/api/v1/gameservers/') && resp.status() === 200
+   );
+   await page.click('[data-testid="create-server"]');
+   await responsePromise;
+   ```
+2. **Set per-test timeouts** based on the operation type, not a global timeout:
+   ```typescript
+   test('create game server', async ({ page }) => {
+     test.setTimeout(120_000); // 2 min for k8s operations
+     // ...
+   });
+   ```
+3. **Use API-level waits, not UI-level waits** for k8s state transitions:
+   ```typescript
+   // Poll the API directly, not the UI rendering
+   await expect(async () => {
+     const resp = await page.request.get('/api/v1/gameservers/my-server/');
+     const body = await resp.json();
+     expect(body.state).toBe('Ready');
+   }).toPass({ timeout: 90_000, intervals: [2_000] });
+   ```
+4. **Pre-pull images in kind** during cluster setup to eliminate image pull latency:
+   ```bash
+   docker pull itzg/minecraft-server:latest
+   kind load docker-image itzg/minecraft-server:latest --name $KIND_CLUSTER
+   ```
+5. **Use mock/stub game images** in E2E tests (an `nginx:alpine` that becomes "Ready" in 5 seconds) instead of real game server images that take 60+ seconds to start
+6. **Add `data-testid` attributes** to all state-dependent UI elements for reliable selectors
 
-**Phase to address:**
-Phase 2 (Networking) - Design port allocation strategy before implementing GameServer reconciliation
+**Detection:**
+- Test passes on retry but fails on first run
+- Same test takes 10 seconds locally but 90 seconds in CI
+- `page.waitForSelector` timeout errors in CI logs
+
+**Phase to address:** Phase 4 (Playwright E2E tests) -- design the waiting strategy before writing any tests
+
+**Confidence:** HIGH -- verified with [Playwright docs on auto-waiting](https://playwright.dev/docs/writing-tests), [Semaphore flaky tests guide](https://semaphore.io/blog/flaky-tests-playwright), [BrowserStack flaky tests guide](https://www.browserstack.com/guide/playwright-flaky-tests)
 
 ---
 
-### Pitfall 5: Inadequate Multi-Tenant Resource Isolation
+### Pitfall 5: GitHub Actions Disk Space Exhaustion During E2E Tests
 
 **What goes wrong:**
-One user's game server becomes a "noisy neighbor" consuming excessive CPU/memory, causing other users' game servers to lag or crash. In worst cases, tenant A can access or modify tenant B's game servers or data.
+The e2e test job fails with "No space left on device" errors. The GitHub Actions runner starts with ~22GB free, but between Docker images (Go builder, Node.js, kind node image, operator image, game server images) and kind's containerd storage, disk usage exceeds available space.
 
 **Why it happens:**
-Teams rely solely on Kubernetes namespaces for isolation, which provide logical separation but not OS-level or resource isolation. They don't implement ResourceQuotas, LimitRanges, or NetworkPolicies.
+The Kterodactyl build involves multiple large Docker images:
+- `golang:1.25` (~1.2GB)
+- `node:22-alpine` (~200MB)
+- Kind node image (~800MB)
+- Built operator image (~200MB compressed, more uncompressed)
+- Game server images for testing (e.g., `itzg/minecraft-server` ~500MB)
+- Plus: Go module cache, npm cache, CRD manifests, Helm charts
 
-**How to avoid:**
-1. Namespace per user (not per game server) - `<username>-games` namespace
-2. ResourceQuota per namespace with CPU/memory limits based on user tier
-3. LimitRange to set default resource requests/limits for game server pods
-4. NetworkPolicy to prevent cross-namespace pod communication (except system namespaces)
-5. PodSecurityPolicy/PodSecurityAdmission to prevent privileged containers
-6. Consider node selectors for paid tiers (sole tenant nodes) vs free tiers (shared nodes)
-7. Use cgroups enforcement via Kubernetes QoS classes (Guaranteed > Burstable > BestEffort)
+GitHub-hosted runners start with limited disk space, and `kind load docker-image` creates additional copies of images. The existing workflow has no disk cleanup step.
 
-**Warning signs:**
-- Game server performance degrades when other servers on same node are active
-- OOMKilled pods when node reaches capacity (no limits set)
-- Cross-tenant network communication possible when testing with netcat
-- Users can create game servers that use more resources than their tier allows
+**Consequences:**
+- E2E tests fail with cryptic I/O errors, not obvious disk space messages
+- Intermittent failures based on how much preinstalled software the runner has
+- Debugging takes hours because the error surfaces in unexpected places (etcd, containerd, Docker)
 
-**Phase to address:**
-Phase 1 (Operator Core) - Implement namespace-per-user pattern and ResourceQuota webhook validation
-Phase 3 (Multi-tenancy) - Add NetworkPolicies and tier-based resource allocation
+**Prevention:**
+1. **Add disk cleanup step** before kind cluster creation:
+   ```yaml
+   - name: Free disk space
+     run: |
+       sudo rm -rf /opt/hostedtoolcache
+       sudo rm -rf /usr/local/lib/android
+       sudo rm -rf /usr/share/dotnet
+       docker system prune -af
+   ```
+2. **Use minimal game server images** for testing -- `nginx:alpine` (8MB) instead of `itzg/minecraft-server` (500MB)
+3. **Use multi-stage Dockerfile** that does not retain build tools in the test image
+4. **Monitor disk usage** in the workflow:
+   ```yaml
+   - name: Check disk space
+     run: df -h
+   ```
+5. **Cache Go modules and npm dependencies** to avoid redownloading:
+   ```yaml
+   - uses: actions/cache@v4
+     with:
+       path: ~/go/pkg/mod
+       key: go-mod-${{ hashFiles('go.sum') }}
+   ```
+
+**Detection:**
+- Errors like "write /var/lib/containerd/...: no space left on device"
+- `docker build` fails with ENOSPC
+- etcd crashes during test with "database space exceeded"
+
+**Phase to address:** Phase 5 (GitHub Actions CI) -- design the workflow with disk management from the start
+
+**Confidence:** HIGH -- documented in [GitHub community discussions](https://github.com/orgs/community/discussions/25678), [Gerald on IT cleanup guide](https://www.geraldonit.com/mastering-disk-space-on-github-actions-runners-a-deep-dive-into-cleanup-strategies-for-x64-and-arm64-runners/)
 
 ---
 
-### Pitfall 6: Over-Templatized Helm Charts
+## Moderate Pitfalls
+
+Issues that cause days of debugging or significant rework but are recoverable.
+
+---
+
+### Pitfall 6: Playwright Auth State Not Shared Across Tests
 
 **What goes wrong:**
-Helm charts become unmaintainable complexity nightmares with excessive conditionals, nested loops, and template functions handling every edge case. Debugging template rendering errors takes hours. New contributors can't understand the chart.
+Every single Playwright test logs in through the UI, making the test suite 3-5x slower than necessary. Or worse, tests manually set JWT tokens via `localStorage` but miss HttpOnly cookie behavior, leading to tests that "pass" but don't actually test the real auth flow.
 
 **Why it happens:**
-Teams over-customize charts early, adding options for hypothetical future scenarios. Each deployment environment gets its own conditional logic path instead of using multiple values files.
+Developers don't use Playwright's `storageState` feature to save and reuse authenticated sessions. Each test opens the login page, types credentials, clicks submit, waits for redirect. With 50+ E2E tests, this adds 10+ minutes of login overhead.
 
-**How to avoid:**
-- Keep templates simple - push variability into values.yaml
-- Resist adding conditionals for "maybe we'll need this" features
-- Use `values.yaml` comments to document every option
-- Break complex charts into sub-charts (e.g., operator, UI, dependencies)
-- Avoid template functions spanning 20+ lines - extract to helper chart
-- Use `helm lint` and `helm template --debug` in CI
-- Test with multiple values files (prod, dev, homelab) to prevent logic sprawl
+Kterodactyl uses JWT tokens in HTTP-only cookies with session management via the Go API server. The auth flow involves: POST /api/v1/auth/login -> server sets cookie -> subsequent requests include cookie. Playwright needs to capture this cookie state once and reuse it.
 
-**Warning signs:**
-- Template files exceeding 200 lines
-- More than 3 levels of nested `{{- if }}` conditionals
-- Template rendering takes >5 seconds
-- Pull requests changing charts require 30+ minute reviews
-- "It works in dev but not prod" despite identical Docker images
+**Prevention:**
+1. **Use Playwright's global setup** to authenticate once and save state:
+   ```typescript
+   // global-setup.ts
+   async function globalSetup() {
+     const browser = await chromium.launch();
+     const page = await browser.newPage();
+     await page.goto('/login');
+     await page.fill('[name=username]', process.env.TEST_USER);
+     await page.fill('[name=password]', process.env.TEST_PASS);
+     await page.click('[type=submit]');
+     await page.waitForURL('/dashboard');
+     await page.context().storageState({ path: 'playwright/.auth/user.json' });
+     await browser.close();
+   }
+   ```
+2. **Configure projects** to use stored auth state:
+   ```typescript
+   // playwright.config.ts
+   projects: [
+     { name: 'setup', testMatch: /.*\.setup\.ts/ },
+     { name: 'tests', use: { storageState: 'playwright/.auth/user.json' }, dependencies: ['setup'] },
+   ]
+   ```
+3. **Add `playwright/.auth` to `.gitignore`** to prevent committing credentials
+4. **Create separate auth states** for admin and regular user test suites
+5. **Seed test users via the API** in global setup rather than through the invite flow
 
-**Phase to address:**
-Phase 2 (Helm Chart) - Start with minimal chart, add complexity only when proven necessary
-Phase 4+ (Refinement) - Regular chart complexity audits and refactoring sprints
+**Detection:**
+- Test suite takes 20+ minutes for 30 tests
+- Every test has a login preamble
+- Tests fail when auth cookies expire mid-suite
+
+**Phase to address:** Phase 4 (Playwright E2E setup) -- implement auth state management as part of test infrastructure
+
+**Confidence:** HIGH -- verified with [Playwright auth docs](https://playwright.dev/docs/auth)
 
 ---
 
-### Pitfall 7: Cardinality Explosion in Prometheus Metrics
+### Pitfall 7: Kind Cluster Not Cleaned Up Between CI Runs
 
 **What goes wrong:**
-Prometheus crashes due to excessive time series from high-cardinality labels. Grafana dashboards timeout. Query performance degrades to unusable. Metrics include unique identifiers like game-server-uuid or player-session-id as labels, creating millions of time series.
+E2E tests pass on the first CI run but fail on subsequent runs with "kind cluster already exists" or "namespace already exists" errors. On self-hosted runners (if used later), previous test state leaks into new runs.
 
 **Why it happens:**
-Developers treat Prometheus labels like log fields, adding high-cardinality dimensions (user IDs, pod names, IP addresses) without understanding cardinality impact. Kubernetes' ephemeral nature (pods changing state frequently) multiplies the problem.
+The existing `Makefile` cleanup target (`cleanup-test-e2e`) runs at the end of `test-e2e`, but if the test fails or times out, the cleanup step never executes. The `setup-test-e2e` target checks for existing clusters but doesn't verify the cluster is in a clean state. On GitHub-hosted runners this is less critical (fresh VM each run), but the workflow design should be robust regardless.
 
-**How to avoid:**
-1. Use low-cardinality labels: game_type, server_state, user_tier (NOT user_id, pod_name, session_id)
-2. Keep label values bounded: use "OTHER" bucket for rare values
-3. Set up cardinality monitoring: use Cardinality Explorer dashboard (Grafana ID 11304)
-4. Implement metric label guidelines in operator code review
-5. Use recording rules to pre-aggregate high-cardinality metrics
-6. Consider horizontal scaling: shard Prometheus by namespace or game type
+**Consequences:**
+- Self-hosted runner builds are completely broken after first failure
+- CRDs from previous runs conflict with current installation
+- Leftover resources cause unexpected controller behavior
+- Developers waste time debugging "works on first run" problems
 
-**Warning signs:**
-- Prometheus pod OOMKilled or restarting frequently
-- Cardinality warnings in Prometheus logs: "high cardinality metric"
-- Queries taking >30s for simple aggregations
-- Metrics scraped once but never queried (dead series accumulation)
-- Time series count growing unbounded over time
+**Prevention:**
+1. **Delete the kind cluster at the START of the workflow**, not just the end:
+   ```yaml
+   - name: Clean up any existing kind cluster
+     run: kind delete cluster --name $KIND_CLUSTER 2>/dev/null || true
+   ```
+2. **Use `always()` condition** for cleanup in GitHub Actions:
+   ```yaml
+   - name: Cleanup kind cluster
+     if: always()
+     run: kind delete cluster --name $KIND_CLUSTER
+   ```
+3. **Use unique cluster names per workflow run** to avoid collisions:
+   ```yaml
+   env:
+     KIND_CLUSTER: kterodactyl-e2e-${{ github.run_id }}
+   ```
+4. **Implement cleanup as a separate job** with `needs` dependency and `if: always()`:
+   ```yaml
+   cleanup:
+     needs: test-e2e
+     if: always()
+     runs-on: ubuntu-latest
+     steps:
+       - run: kind delete cluster --name $KIND_CLUSTER
+   ```
+5. **Add timeouts to jobs** to prevent runaway tests from consuming runner hours:
+   ```yaml
+   jobs:
+     test-e2e:
+       timeout-minutes: 30
+   ```
 
-**Phase to address:**
-Phase 3 (Observability) - Design metrics schema with cardinality budgets per metric before implementation
-Phase 4+ (Scale) - Add cardinality alerts and dashboards to detect explosion early
+**Detection:**
+- Second CI run on same runner fails with cluster-exists errors
+- CRD version conflicts in logs
+- "resource already exists" errors in setup steps
+
+**Phase to address:** Phase 3 (kind cluster setup) and Phase 5 (GitHub Actions CI) -- bake cleanup into the workflow from day one
+
+**Confidence:** HIGH -- verified from existing `Makefile` and `test-e2e.yml` analysis
 
 ---
 
-### Pitfall 8: Operator Leader Election Split-Brain
+### Pitfall 8: Playwright WebSocket Console Tests Are Inherently Flaky
 
 **What goes wrong:**
-Two operator replicas both think they're leader, reconciling the same resources simultaneously. This creates race conditions: duplicate game servers spawned, conflicting status updates, and resource thrashing. In network partition scenarios, old leader doesn't step down while new leader is elected.
+Tests that verify the WebSocket console (xterm.js terminal) fail intermittently. The test opens the console, waits for a WebSocket connection, sends a command, and asserts output appears. But the WebSocket connection timing, the game server's readiness to accept stdin, and xterm.js rendering all introduce variable latency.
 
 **Why it happens:**
-Leader election configured with insufficient tolerations for node failures. When leader pod is on unresponsive node, pod isn't deleted automatically - old leader keeps lock while new leader can't be elected. Default garbage collection timing causes 5+ minute delays in re-election.
+The Kterodactyl console works by: UI opens WebSocket to API server -> API server creates exec session to Pod -> Pod's game server process accepts stdin/stdout. Each hop has independent failure modes:
+- WebSocket connection may not be established yet when the test sends input
+- Pod exec session may timeout or fail if the container is still initializing
+- xterm.js rendering is asynchronous -- characters may not be visible immediately
+- Game server processes have varying startup times before accepting console input
 
-**How to avoid:**
-1. Configure `node.kubernetes.io/unreachable` and `node.kubernetes.io/not-ready` tolerations with short `tolerationSeconds` (30-60s)
-2. Set lease duration and renew deadline appropriately: 15s duration, 10s renew deadline, 2s retry period
-3. Implement staleness detection: release lock if no heartbeat in 30s
-4. Test network partition scenarios: simulate node isolation and verify re-election timing
-5. Add leader election metrics: leader_election_leader (boolean), leader_election_transitions_total (counter)
-6. Use Kubernetes 1.26+ coordinated leader election improvements
+**Consequences:**
+- Console tests fail 10-20% of the time in CI
+- Developers disable console tests or mark them as `skip`
+- Real console bugs ship because the tests aren't trusted
 
-**Warning signs:**
-- Multiple operator pods log "starting reconciliation" for same resource
-- GameServer status updates conflicting (lastUpdated timestamp ping-ponging)
-- Two operators incrementing same counter causing skipped numbers
-- Operator unresponsive for 5+ minutes during node drain
-- "lease already held by another holder" errors with long delays
+**Prevention:**
+1. **Wait for WebSocket connection before interacting:**
+   ```typescript
+   const wsPromise = page.waitForEvent('websocket');
+   await page.click('[data-testid="open-console"]');
+   const ws = await wsPromise;
+   await ws.waitForEvent('framereceived'); // wait for initial output
+   ```
+2. **Use a mock game server** for console E2E tests that immediately echoes stdin to stdout -- do not test against a real Minecraft server
+3. **Test the WebSocket API directly** (without xterm.js) for functional validation -- save xterm.js visual tests for a small smoke test
+4. **Add retry logic at the assertion level**, not the action level:
+   ```typescript
+   await expect(page.locator('.xterm-rows')).toContainText('server>', { timeout: 15_000 });
+   ```
+5. **Test WebSocket messages programmatically** using Playwright's WebSocket API rather than through the terminal UI:
+   ```typescript
+   page.on('websocket', ws => {
+     ws.on('framereceived', event => { /* assert on messages */ });
+   });
+   ```
+6. **Separate console connectivity tests** (WebSocket connects, data flows) from **console content tests** (specific game output)
 
-**Phase to address:**
-Phase 1 (Operator Core) - Configure leader election with production-ready timings from start
-Phase 4 (HA Testing) - Chaos engineering tests for network partitions and node failures
+**Detection:**
+- Console tests have highest flake rate in the suite
+- Tests pass with `--debug` (slower execution gives more time) but fail headless
+- Different results on different browser engines (Chromium vs Firefox WebSocket timing)
+
+**Phase to address:** Phase 4 (Playwright E2E) -- design console test strategy separately from regular UI tests
+
+**Confidence:** MEDIUM -- based on Playwright WebSocket API docs and general WebSocket testing patterns; no specific xterm.js + k8s testing guides found
 
 ---
 
-### Pitfall 9: Graceful Shutdown State Loss for Game Servers
+### Pitfall 9: Go API Tests Use Fake Client but E2E Tests Use Real Cluster -- Gap in Coverage
 
 **What goes wrong:**
-Players lose progress when game servers are terminated. Pod receives SIGTERM but game server doesn't save world state before shutdown. 30-second grace period expires, Kubernetes sends SIGKILL, and data is lost mid-write.
+API handler tests use `fake.NewClientBuilder()` (as in the existing `helpers_test.go`) which does not run the controller. E2E tests run the full stack against kind. There is a significant coverage gap between these two levels: the API handler tests verify HTTP behavior but skip reconciliation, while e2e tests are slow and coarse-grained. Bugs in the API-to-controller interaction (e.g., status subresource updates, CRD validation, label selectors) slip through both test layers.
 
 **Why it happens:**
-Game server containers don't handle SIGTERM properly. Developers assume terminationGracePeriodSeconds default (30s) is sufficient, but saving large world state takes 60+ seconds. No preStop hook implemented to coordinate shutdown sequence.
+The fake client does not support:
+- Server-side validation (CRD structural schemas)
+- Status subresource semantics (separate client.Status().Update needed but fake client may not enforce it)
+- Finalizer behavior (fake client doesn't trigger reconciliation on delete with finalizers)
+- Watch/informer cache behavior
+- Admission webhooks
 
-**How to avoid:**
-1. Game server application must handle SIGTERM: stop accepting connections, finish in-flight requests, save state, close DB connections
-2. Set appropriate `terminationGracePeriodSeconds` per game type (60-120s for large world games, 30s for session games)
-3. Implement preStop hook to trigger graceful save: `preStop: exec: command: ["/bin/sh", "-c", "kill -TERM 1 && sleep 10"]`
-4. Expose readiness probe that returns false during shutdown to stop new traffic
-5. Add backup mechanism: operator watches for terminated pods and triggers emergency save
-6. Test shutdown: send SIGTERM manually and verify state saves within grace period
+Developers assume that if API tests pass (with fake client) and e2e tests pass (full stack), everything is covered. But the fake client has different semantics than a real API server.
 
-**Warning signs:**
-- Player complaints about lost progress after "server restart"
-- Database corruption errors on game server restart
-- Game server processes showing SIGKILL in logs (not SIGTERM)
-- terminationGracePeriodSeconds timing out (grace period exceeded)
-- File writes incomplete (partial JSON files, truncated SQLite databases)
+**Consequences:**
+- API tests pass but the same operation fails in production due to CRD validation rejecting the request
+- Status updates work in tests but fail in real cluster because of subresource handling differences
+- Label selectors that work with fake client return different results with real API server
 
-**Phase to address:**
-Phase 2 (Game Server Integration) - Document and test SIGTERM handling requirements for each game definition
-Phase 3 (Backup Integration) - Implement operator-triggered backup on termination
+**Prevention:**
+1. **Add an integration test layer** that runs the controller with envtest AND hits the API server:
+   ```go
+   // integration_test.go -- runs both controller and API server against envtest
+   func TestCreateGameServerIntegration(t *testing.T) {
+       // Start envtest with controller
+       // Start API server against envtest's k8s client
+       // Make HTTP request to API
+       // Assert reconciliation creates Pod
+   }
+   ```
+2. **Acknowledge the gap explicitly** in test documentation -- list what each test level does and does not cover
+3. **Use envtest for API handler tests** instead of fake client for critical paths (creation, deletion, state transitions)
+4. **Keep fake client tests** for pure HTTP behavior (400 errors, validation, auth checks) where controller behavior is irrelevant
+5. **Add contract tests** that verify the fake client and real API server produce the same results for key operations
+
+**Detection:**
+- "Works in tests, fails in kind" pattern
+- API tests assert behaviors the fake client doesn't actually enforce
+- Status subresource updates silently differ between fake and real client
+
+**Phase to address:** Phase 2 (Go API integration tests) -- decide the test architecture before writing extensive API tests
+
+**Confidence:** HIGH -- verified from existing test code analysis and [Operator SDK testing docs](https://sdk.operatorframework.io/docs/building-operators/golang/testing/)
 
 ---
 
-### Pitfall 10: Wildcard DNS and Cert-Manager TXT Record Conflicts
+### Pitfall 10: Playwright Tests Hardcode URLs and Selectors That Break on Layout Changes
 
 **What goes wrong:**
-Cert-manager DNS-01 challenges fail or timeout. Both ExternalDNS and cert-manager create conflicting TXT records for `_acme-challenge.domain.com`. With split-horizon DNS, cert-manager updates external DNS but validates against internal DNS, causing perpetual "Waiting for DNS-01 challenge propagation" state.
+E2E tests break every time the UI team refactors a component. Tests use CSS selectors like `.MuiButton-root`, text content like `await page.click('text=Create Server')`, or structural selectors like `div > div:nth-child(3) > button` that are coupled to implementation details.
 
 **Why it happens:**
-Both tools manage TXT records without coordination. Teams implement `<game>.<username>.domain.com` pattern requiring wildcard certs (`*.*.domain.com`) but DNS provider doesn't support nested wildcards. Split-horizon DNS setup isn't accounted for in cert-manager configuration.
+Without a testing strategy, developers write Playwright tests by inspecting the browser, copying selectors, and pasting into tests. The React SPA (using Radix UI + Tailwind) generates class names that are unstable across builds. Text content changes during i18n or copy updates.
 
-**How to avoid:**
-1. Specify unique ownership IDs: ExternalDNS `txt-owner-id` and cert-manager `--cluster-resource-namespace` to prevent conflicts
-2. Use DNS provider with recursive ACME challenge support (Route53, CloudFlare work well; some don't)
-3. For split-horizon: configure cert-manager to use external DNS resolver: `--dns01-recursive-nameservers=8.8.8.8:53`
-4. Consider certificate strategy: one wildcard per user (`*.alice.domain.com`) instead of one for all (`*.*.domain.com`)
-5. Implement DNS propagation checks: monitor `_acme-challenge` TXT record visibility before challenge
-6. Set longer DNS propagation wait time: `propagationTimeout: 180s` in issuer config
+**Consequences:**
+- Every UI PR breaks 5-10 E2E tests
+- Developers stop running E2E tests before merging UI changes
+- Maintaining test selectors becomes a full-time job
+- Tests are brittle indicators of UI correctness
 
-**Warning signs:**
-- Cert-manager challenges stuck in "pending" state for >5 minutes
-- Multiple TXT records for same `_acme-challenge` subdomain
-- External DNS resolver shows different TXT records than internal
-- Certificate renewals failing but manual `certbot` succeeds
-- "too many authorizations" errors from Let's Encrypt due to retries
+**Prevention:**
+1. **Add `data-testid` attributes** to all interactive and assertable elements:
+   ```tsx
+   <Button data-testid="create-server-btn" onClick={handleCreate}>
+     Create Server
+   </Button>
+   ```
+2. **Create a test ID convention** in the project:
+   - `data-testid="page-{name}"` for page containers
+   - `data-testid="{entity}-{action}-btn"` for buttons
+   - `data-testid="{entity}-{field}"` for display values
+   - `data-testid="{entity}-status"` for state indicators
+3. **Use Playwright's `getByRole`** and `getByLabel` for form elements (accessible and stable)
+4. **Never use CSS class selectors or nth-child** in E2E tests
+5. **Co-locate test IDs with components** and enforce via ESLint rule or code review
 
-**Phase to address:**
-Phase 2 (DNS/Ingress) - Design DNS and certificate strategy with split-horizon and wildcard implications
-Phase 3 (External DNS) - Integration testing with both ExternalDNS and cert-manager before production
+**Detection:**
+- E2E tests fail after UI-only PRs
+- Tests use `.class-name` or `:nth-child` selectors
+- Selector strings longer than 50 characters
 
----
+**Phase to address:** Phase 4 (Playwright E2E) -- establish test ID conventions BEFORE writing any tests; retrofit `data-testid` attributes to existing components
 
-## Technical Debt Patterns
-
-Shortcuts that seem reasonable but create long-term problems.
-
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Single controller managing GameServer + User + Backup CRDs | Faster initial development, shared code | Violates Single Responsibility, reconciliation complexity, hard to test, difficult to extend | Never - split from start |
-| Hardcoded port ranges (30000-30100) instead of dynamic allocation | Simple, works for MVP | Port exhaustion at scale, no per-node tracking, conflicts with other services | Homelab-only deployments with <10 servers |
-| No conversion webhooks until v1 | Skip webhook server complexity early | Breaking changes block upgrades, forced downtime for migrations, data loss risk | Never for greenfield - webhook server is boilerplate |
-| Storing allocated state in operator memory instead of CRD status | Faster reconciliation, no API writes | State lost on operator restart, split-brain in HA, no observability | Single-replica dev environments only |
-| ResourceQuotas set manually instead of tier-based automation | Quick setup, flexible | Configuration drift, human error, no enforcement of tier limits | POC with 1-2 users |
-| Backup to local PV instead of S3 | No cloud dependencies, simpler | No disaster recovery, node failure = data loss, no cross-cluster restore | Development only, never staging/prod |
-| `terminationGracePeriodSeconds: 30` default for all games | Standard Kubernetes behavior | Data loss for stateful games, player complaints | Stateless session-based games with no persistence |
-| Community game definitions without sandboxing/validation | Fast community growth, more games | Security risk (malicious images), support burden (broken definitions), quality issues | Curated contributions with manual review |
+**Confidence:** HIGH -- standard Playwright best practice from [Playwright writing tests docs](https://playwright.dev/docs/writing-tests), [Elaichenkov 17 mistakes guide](https://elaichenkov.github.io/posts/17-playwright-testing-mistakes-you-should-avoid/)
 
 ---
 
-## Integration Gotchas
+## Minor Pitfalls
 
-Common mistakes when connecting to external services.
-
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| SteamCMD | Assuming SteamCMD in container is legal for all games | Verify each game's server hosting license - some prohibit specific hosting types; document licensing in game definition schema; implement license metadata field |
-| S3-compatible storage | Not handling eventual consistency for backup listings | Use strong consistency S3 regions (us-east-1, eu-central-1); implement retry logic with exponential backoff; verify object exists after PutObject before marking backup complete |
-| Prometheus | Scraping all GameServer pods individually | Use Prometheus Operator ServiceMonitor with label selectors; aggregate metrics at namespace level; implement federation for multi-cluster |
-| External-DNS | Assuming DNS changes are immediate | Set `external-dns.alpha.kubernetes.io/ttl: "60"` annotation; implement readiness gates waiting for DNS propagation; health check DNS resolution before marking GameServer ready |
-| Docker registries | Public rate limits (Docker Hub 100 pulls/6hrs) | Use registry mirrors; implement ImagePullSecrets for authenticated pulls; consider self-hosted registry or cloud provider registry (ECR, GCR, ACR) |
-| Cloud provider load balancers | Creating LoadBalancer service per GameServer | Use single LoadBalancer with NodePort, track port allocations; or use MetalLB for on-prem; cloud LBs cost $15-30/mo each - unsustainable at scale |
-| Cert-manager | DNS provider credentials in plaintext ConfigMap | Store in Secret; use ExternalSecrets Operator to sync from Vault/AWS Secrets Manager; rotate credentials periodically; use IAM roles where possible (AWS IRSA, GCP Workload Identity) |
-| RBAC | Granting cluster-admin to operator ServiceAccount | Use least privilege: namespace-scoped Role for GameServers, ClusterRole only for CRDs/Nodes; use `--leader-elect-resource-namespace` to scope lease to single namespace |
+Issues that waste hours but are straightforward to fix.
 
 ---
 
-## Performance Traps
+### Pitfall 11: Playwright CI Runs All Workers, Overloading the Runner
 
-Patterns that work at small scale but fail as usage grows.
+**What goes wrong:**
+Playwright defaults to using half the available CPU cores as workers. On a developer machine with 16 cores, this means 8 parallel browser instances. On a GitHub Actions runner with 2 cores, this means 1 worker -- but if configured explicitly for speed, too many workers cause OOM kills and flaky timeouts due to resource contention.
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Listing all GameServers in cluster on every reconciliation | Reconciliation latency increases linearly with server count; API server throttling | Use field selectors and label selectors; implement pagination for large lists; cache informers; watch specific resources instead of list-all | >1000 GameServers |
-| Creating dedicated namespace per GameServer | Simple isolation model, clear boundaries | Namespace sprawl (k8s degrades >5000 namespaces); etcd pressure; apiserver watch connection limits | >2000 GameServers |
-| Syncing all user game servers to CRD status array | Complete view in single kubectl get | CRD size limit (1.5MB); etcd write amplification; reconciliation loops on large updates | >500 servers per user |
-| No index on GameServer.spec.gameType in informer cache | Query convenience | Full cache scan on every allocation request; O(n) lookup time | >5000 GameServers |
-| Backup all game servers to S3 in parallel on timer | Simple cron schedule | S3 rate limits; network saturation; node disk I/O bottleneck; thundering herd | >100 concurrent backups |
-| Single Prometheus instance for all metrics | Standard setup | Cardinality limits; OOM crashes; query timeouts; sampling bias when dropping metrics | >1M active time series |
-| Using finalizers for every GameServer cleanup | Guaranteed cleanup before deletion | Finalizer backlog during mass deletion; operator bottleneck; slow namespace deletion | >1000 simultaneous deletions |
-| Reconciling all GameServers on User CRD update | Consistency guarantee | Reconciliation storm; API throttling; reconcile queue backlog | User with >100 GameServers |
+**Prevention:**
+- Set `workers: 1` in CI configuration to ensure sequential, stable execution:
+  ```typescript
+  // playwright.config.ts
+  export default defineConfig({
+    workers: process.env.CI ? 1 : undefined,
+  });
+  ```
+- Use the `--shard` flag for parallelism across CI jobs instead of within a single runner
+- Run only Chromium in CI (skip Firefox and WebKit unless cross-browser is critical)
 
----
+**Phase to address:** Phase 4 (Playwright config)
 
-## Security Mistakes
-
-Domain-specific security issues beyond general web security.
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Allowing user-specified container images in GameServer CRD | Remote code execution; cryptomining; data exfiltration; DDoS participation | Restrict to curated registry; implement admission webhook validating allowed images; maintain allow-list of community-verified images; scan images with Trivy/Clair in CI |
-| No network policy between GameServer pods | Player A connects to Player B's server directly; cross-tenant attacks; packet sniffing | Default-deny NetworkPolicy; allow only from ingress and within same namespace; block pod-to-pod for different users |
-| Backup secrets stored in GameServer namespace | Users with namespace access can read S3 credentials | Store backup credentials in operator namespace; use ServiceAccount token projection; implement Secrets Store CSI Driver; use cloud IAM roles (IRSA, Workload Identity) |
-| Game server runs as root in container | Container escape = node compromise; privilege escalation | Set `runAsNonRoot: true` and `runAsUser: 1000` in PodSecurityPolicy; use restricted PSA profile; enforce in admission webhook |
-| Allowing privileged containers in game definitions | Node kernel access; access host devices; bypass seccomp/AppArmor | PodSecurityPolicy with `privileged: false`; PSA enforce restricted profile; reject privileged in validating webhook |
-| No resource limits on game servers | DoS via resource exhaustion; noisy neighbor; cluster instability | LimitRange per namespace; admission webhook requiring requests/limits; set defaults in game definition template |
-| User-provided environment variables injected without sanitization | Credential injection; SSRF; command injection in startup scripts | Validate env vars against allow-list; strip sensitive patterns (AWS_, KUBE_); use admission webhook to filter |
-| Allowing LoadBalancer service type | Cost explosion; IP exhaustion; cloud quota limits | Admission webhook blocking LoadBalancer in user namespaces; use NodePort or ingress-based routing |
+**Confidence:** HIGH -- verified with [Playwright CI docs](https://playwright.dev/docs/ci)
 
 ---
 
-## UX Pitfalls
+### Pitfall 12: Go Test Timeout Defaults Are Too Short for Controller Tests
 
-Common user experience mistakes in this domain.
+**What goes wrong:**
+`go test` defaults to a 10-minute timeout per package. Controller integration tests that start envtest, run the manager, execute tests with `Eventually` waits, and tear down can exceed this. The test binary is killed mid-run with no diagnostic output.
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| GameServer "Pending" state with no reason | User doesn't know why server won't start; creates support tickets | Add detailed status conditions: ImagePullBackOff, InsufficientResources, PortConflict; surface in UI prominently |
-| Backup restoration as kubectl apply YAML | Non-technical users can't restore; manual error-prone process | Implement restore button in UI; create BackupRestore CRD; handle restoration logic in operator |
-| DNS propagation delay invisible to users | User tries to connect immediately after creation, sees DNS_PROBE_FINISHED_NXDOMAIN, thinks system is broken | Show "DNS propagating (30s remaining)" status in UI; poll DNS resolution; show IP as fallback connection option |
-| No feedback during long operations (SteamCMD download) | User sees "Creating..." for 10 minutes, assumes it's stuck, cancels and retries | Stream logs to UI via WebSocket; show progress: "Downloading CS:GO (2.3GB / 15GB)"; percentage complete in GameServer status |
-| Error messages like "reconciliation failed" | Meaningless to end users | User-friendly messages: "Game server couldn't start because your account has reached the 5 server limit. Upgrade to Pro for unlimited servers." |
-| No confirmation on destructive actions | User deletes game server thinking they can restore; data loss | "Delete server? This will permanently delete world data. Type server name to confirm." confirmation UI; implement soft-delete with 7-day retention |
-| Port number required in connection string | Confusing (why do I need :27015?); error-prone (users forget) | Use SRV records where supported; detect game type and auto-select port; provide copy-to-clipboard connection string |
-| No visibility into game server console | Debugging startup failures requires kubectl logs | Embedded console viewer in UI; tail last 100 lines; real-time streaming; search/filter capability |
+**Prevention:**
+- Set explicit timeouts: `go test -timeout 30m ./internal/controller/...`
+- Configure per-test timeouts in the Makefile:
+  ```makefile
+  test: manifests generate fmt vet setup-envtest
+  	KUBEBUILDER_ASSETS="..." go test -timeout 20m $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+  ```
+- Set Ginkgo suite-level timeout: `SetDefaultEventuallyTimeout(2 * time.Minute)` (already in existing code -- good)
+- Add `context.WithTimeout` to individual test helpers
+
+**Phase to address:** Phase 1 (Go test infrastructure)
+
+**Confidence:** HIGH -- standard Go testing behavior
+
+---
+
+### Pitfall 13: E2E Tests Pull Images from Docker Hub -- Rate Limiting in CI
+
+**What goes wrong:**
+GitHub Actions runners share IP ranges. Docker Hub imposes rate limits of 100 pulls per 6 hours for unauthenticated users. When multiple CI runs or other projects on the same runner IP hit Docker Hub, image pulls fail with `429 Too Many Requests`, causing e2e tests to fail.
+
+**Prevention:**
+- **Pre-pull and cache game server images** in the workflow:
+  ```yaml
+  - name: Pull and cache game images
+    run: |
+      docker pull itzg/minecraft-server:latest || true
+      kind load docker-image itzg/minecraft-server:latest --name $KIND_CLUSTER
+  ```
+- **Use a lightweight stub image** instead of real game server images for most e2e tests
+- **Authenticate with Docker Hub** using a free account (200 pulls / 6 hours):
+  ```yaml
+  - name: Login to Docker Hub
+    uses: docker/login-action@v3
+    with:
+      username: ${{ secrets.DOCKERHUB_USERNAME }}
+      password: ${{ secrets.DOCKERHUB_TOKEN }}
+  ```
+- **Mirror critical images** to GitHub Container Registry (ghcr.io) which has no rate limits for public images
+
+**Phase to address:** Phase 5 (GitHub Actions CI) -- configure image strategy with rate limiting in mind
+
+**Confidence:** HIGH -- well-documented Docker Hub rate limiting policy
+
+---
+
+### Pitfall 14: Test Data Coupling Between Playwright and API Tests
+
+**What goes wrong:**
+Playwright tests create users like "alice" and game servers like "mc-server-1" -- the same names used in Go API tests. When both test suites run against the same kind cluster (or if someone tries to run them simultaneously), they collide. More subtly, Playwright tests assume specific database state that the Go API tests may have modified.
+
+**Prevention:**
+- **Use distinct prefixes** for each test layer:
+  - Go API tests: `api-test-*` names
+  - Playwright tests: `e2e-test-*` names
+  - Controller tests: `ctrl-test-*` names
+- **Each Playwright test should create AND clean up its own data** -- never assume a resource exists from a previous test
+- **Run Playwright and Go e2e tests in separate kind namespaces** or separate cluster instances
+- **Use unique usernames per test file** to prevent auth state collisions
+
+**Phase to address:** Phase 2 and Phase 4 -- establish naming conventions early
+
+**Confidence:** MEDIUM -- project-specific analysis based on existing test code
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|---|---|---|
+| Go unit tests (Phase 1) | Cached client flakiness (#1), namespace contamination (#2), test timeout (#12) | Use live client, unique namespaces, explicit timeouts |
+| Go API integration tests (Phase 2) | Fake vs real client coverage gap (#9), test data naming collisions (#14) | Add envtest integration layer for critical paths, naming conventions |
+| Kind cluster setup (Phase 3) | Image loading timeout (#3), disk space (#5), cluster cleanup (#7) | Local registry, disk cleanup step, always() cleanup |
+| Playwright E2E (Phase 4) | K8s state wait strategy (#4), auth state management (#6), WebSocket flakiness (#8), brittle selectors (#10), CI workers (#11) | API-level waits, storageState, mock game servers, data-testid, workers:1 |
+| GitHub Actions CI (Phase 5) | Disk space (#5), Docker Hub rate limits (#13), cluster cleanup (#7), total pipeline duration | Disk cleanup, image caching/mirroring, job timeouts, parallelization via matrix |
 
 ---
 
@@ -372,21 +633,18 @@ Common user experience mistakes in this domain.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **CRD Versioning:** Often missing StorageVersionMigration implementation - verify conversion webhooks exist and roundtrip testing is in CI
-- [ ] **Operator HA:** Often missing leader election timeout configuration and network partition testing - verify tolerationSeconds and lease renewal timings configured
-- [ ] **Port Allocation:** Often missing port conflict detection and exhaustion handling - verify port pool tracking and allocation logic prevent double-booking
-- [ ] **Graceful Shutdown:** Often missing preStop hooks and appropriate terminationGracePeriodSeconds - verify SIGTERM handling tested with actual game servers
-- [ ] **Backup Reliability:** Often missing corruption detection and restore testing - verify backups are restorable and periodic restoration tests in CI
-- [ ] **Multi-tenancy:** Often missing NetworkPolicies and ResourceQuotas - verify tenant isolation with penetration testing (can tenant A access tenant B?)
-- [ ] **DNS Propagation:** Often missing readiness gates waiting for DNS - verify GameServer not marked "Ready" until DNS resolves from external resolver
-- [ ] **Metrics Cardinality:** Often missing cardinality budgets and alerts - verify Prometheus metrics don't use high-cardinality labels and monitoring set up
-- [ ] **RBAC Least Privilege:** Often using cluster-admin when namespace scope sufficient - verify operator ServiceAccount has minimal permissions
-- [ ] **Error Messages:** Often generic errors without actionable guidance - verify error messages are user-friendly and include next steps
-- [ ] **Finalizer Cleanup:** Often missing finalizer timeout/fallback logic - verify stuck resources can be cleaned up without manual kubectl patch
-- [ ] **Helm Chart Testing:** Often tested only in minikube - verify chart deploys to multi-node cluster with production-like networking
-- [ ] **Game Definition Schema:** Often missing license metadata and resource requirements - verify community contributions include necessary metadata for safety/billing
-- [ ] **TLS Certificate Automation:** Often missing renewal monitoring - verify cert-manager renewals work and alerts fire on failure
-- [ ] **S3 Backup Cleanup:** Often missing retention policy and orphan cleanup - verify old backups deleted and orphaned files cleaned up
+- [ ] **Test client setup:** Using manager's cached client instead of live client -- all assertions will be intermittently stale
+- [ ] **Namespace cleanup in envtest:** Relying on namespace deletion for test isolation -- namespaces never actually delete in envtest
+- [ ] **Kind image loading:** Using `kind load docker-image` without caching or size optimization -- CI will be 3-5x slower than necessary
+- [ ] **Playwright timeouts:** Using default 30s timeout for operations that involve k8s reconciliation -- will timeout in CI
+- [ ] **Auth state reuse:** Each test logs in through UI -- test suite will take 3-5x longer than necessary
+- [ ] **Console tests:** Testing xterm.js against real game servers -- will be flaky due to WebSocket + Pod exec latency
+- [ ] **Test data isolation:** Using hardcoded resource names shared across test layers -- tests will collide
+- [ ] **CI disk space:** No cleanup of preinstalled software -- will run out of disk space with game server images
+- [ ] **Docker Hub rate limits:** No authentication for image pulls in CI -- will get 429 errors during high-activity periods
+- [ ] **Cleanup on failure:** Kind cluster cleanup only runs after successful tests -- failed runs leave dirty state on self-hosted runners
+- [ ] **Test ID attributes:** No `data-testid` on React components -- Playwright tests coupled to implementation details
+- [ ] **Coverage gap:** API tests use fake client, e2e tests are full-stack -- no integration tests covering API-to-controller interaction
 
 ---
 
@@ -395,100 +653,61 @@ Things that appear complete but are missing critical pieces.
 When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| CRD storage version removed prematurely | HIGH | Restore old CRD version from git; apply to cluster; manually patch stored resources to new version; create StorageVersionMigration; verify all resources accessible; remove old version |
-| Port allocation conflicts on all nodes | MEDIUM | Drain nodes one by one; restart operator to reset port allocation state; implement port allocation CRD tracking allocated ports; redeploy game servers with new allocations |
-| Prometheus cardinality explosion | MEDIUM | Identify high-cardinality metrics with `topk(20, count by (__name__)({__name__=~".+"}))` query; temporarily drop problematic metrics via relabeling; fix metric labels in code; roll out new operator version; reset Prometheus data |
-| Leader election split-brain | LOW | Delete both operator pods to force clean re-election; verify lease resource cleared; check for competing operators in different namespaces; ensure only one operator deployment exists |
-| Wildcard certificate expired | LOW | Delete Certificate resource to force reissue; check cert-manager logs for DNS propagation issues; manually verify TXT record created; trigger renewal with `cmctl renew <cert>`; check Let's Encrypt rate limits |
-| Finalizers stuck preventing deletion | LOW | Identify stuck resources with `kubectl get <resource> -o json | jq '.metadata.finalizers'`; verify controller for finalizer is running; remove finalizer with `kubectl patch <resource> -p '{"metadata":{"finalizers":null}}' --type=merge`; manually clean up dependent resources |
-| Backup corruption detected | HIGH | Attempt restore from previous backup; check S3 bucket versioning; verify game server saved state before operator backup triggered; contact user about data loss; implement corruption detection in backup process |
-| Multi-tenant isolation breach | HIGH | Immediately isolate affected namespaces with NetworkPolicy; audit access logs for unauthorized access; rotate credentials; review RBAC permissions; notify affected users; implement additional security controls |
-| Helm chart rendering failure in production | MEDIUM | Roll back to previous chart version; test new chart with production values in staging; identify problematic template logic; fix and re-test; implement chart testing in CI with all values files |
-| GameServer stuck in Terminating state | LOW | Check for finalizers; verify operator is processing deletion; manually remove finalizer if operator is functioning; force delete pod if needed: `kubectl delete pod <pod> --force --grace-period=0`; investigate why operator didn't clean up |
-
----
-
-## Pitfall-to-Phase Mapping
-
-How roadmap phases should address these pitfalls.
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| CRD storage version removal | Phase 1: Core CRD Design | CI tests StorageVersionMigration before CRD version removal allowed |
-| Missing conversion webhooks | Phase 1: Core CRD Design | Integration test creates v1alpha1 resource, reads as v1beta1, verifies fields match |
-| Non-idempotent reconciliation | Phase 1: Operator Core | Unit test: reconcile twice with same input, verify identical output and no errors |
-| UDP port allocation conflicts | Phase 2: Networking | Load test: create 100 GameServers simultaneously, verify no port conflicts in status |
-| Multi-tenant resource isolation | Phase 1: Operator Core + Phase 3: Multi-tenancy | Penetration test: from tenant A pod, attempt to access tenant B GameServer (should fail) |
-| Over-templatized Helm charts | Phase 2: Helm Chart + continuous | Complexity metrics in CI: fail if template >200 lines or >3 nested conditionals |
-| Cardinality explosion | Phase 3: Observability | Alert on >100k active time series; dashboard showing top-10 metrics by cardinality |
-| Leader election split-brain | Phase 1: Operator Core + Phase 4: HA Testing | Chaos test: network partition node with leader, verify new leader elected <60s |
-| Graceful shutdown state loss | Phase 2: Game Server Integration | Integration test: SIGTERM game server pod, verify state saved before terminationGracePeriod expires |
-| Wildcard DNS + cert-manager conflicts | Phase 2: DNS/Ingress + Phase 3: External DNS | Integration test: create GameServer, verify DNS resolves and TLS cert issued <5min |
-| Works in minikube, fails in production | All phases | CI runs full test suite on multi-node cluster (kind/k3s with 3 nodes minimum) |
-| Port management with hostPort/hostNetwork | Phase 2: Networking | Test: deploy to cluster with CNI that doesn't support hostPort, verify graceful degradation |
-| RBAC over-privileged operator | Phase 1: Operator Core | RBAC audit: verify operator has no cluster-admin, uses namespace-scoped Roles where possible |
-| Finalizers blocking deletion | Phase 1: Operator Core + Phase 3: Reliability | Test: operator pod killed during GameServer deletion, verify finalizer removed after restart |
-| Backup to S3 reliability | Phase 3: Backup Integration | Test: corrupt backup file, trigger restore, verify corruption detected with actionable error |
+|---|---|---|
+| Cached client flaky tests (#1) | LOW | Replace `k8sManager.GetClient()` with `client.New()` in suite_test.go; add `Eventually` wrappers to existing assertions |
+| Namespace contamination (#2) | MEDIUM | Refactor all tests to use random namespace names; add explicit resource cleanup; may require rewriting test setup/teardown |
+| Image loading timeout (#3) | LOW | Add local registry to kind config; change Makefile to push to local registry instead of `kind load` |
+| Playwright k8s waits (#4) | MEDIUM | Rewrite all state-dependent assertions to use `toPass()` with API polling; add `data-testid` to status elements |
+| Disk space exhaustion (#5) | LOW | Add cleanup step to workflow; switch to stub images |
+| Auth state not shared (#6) | LOW | Add global setup script; configure Playwright projects with dependencies |
+| Kind cluster cleanup (#7) | LOW | Add `if: always()` to cleanup step; prefix cluster name with run ID |
+| WebSocket console flakiness (#8) | MEDIUM | Replace real game server with mock echo server; separate functional and visual console tests |
+| Fake/real client gap (#9) | HIGH | Requires adding new integration test layer; significant test architecture change |
+| Brittle selectors (#10) | HIGH | Requires retrofitting `data-testid` to all React components; updating all Playwright selectors |
 
 ---
 
 ## Sources
 
-### CRD Versioning and Operator Best Practices
-- [Kubernetes CRD: the versioning joy - DEV Community](https://dev.to/jotak/kubernetes-crd-the-versioning-joy-6g0)
-- [Operator Best Practices | Operator SDK](https://sdk.operatorframework.io/docs/best-practices/best-practices/)
-- [K8s CRD Versioning - NAIS Handbook](https://handbook.nais.io/technical/k8s_crd_versioning/)
-- [Common recommendations and suggestions | Operator SDK](https://sdk.operatorframework.io/docs/best-practices/common-recommendation/)
-- [Good Practices - The Kubebuilder Book](https://book.kubebuilder.io/reference/good-practices)
+### EnvTest and Controller Testing
+- [Writing Tests - The Kubebuilder Book](https://book.kubebuilder.io/cronjob-tutorial/writing-tests)
+- [Configuring EnvTest - The Kubebuilder Book](https://book.kubebuilder.io/reference/envtest)
+- [Testing Kubernetes Operators using EnvTest - InfraCloud](https://www.infracloud.io/blogs/testing-kubernetes-operator-envtest/)
+- [Testing Production Kubernetes Controllers - SuperOrbital](https://superorbital.io/blog/testing-production-controllers/)
+- [Testing Kubernetes Operators with Ginkgo, Gomega and the Operator Runtime - ITNEXT](https://itnext.io/testing-kubernetes-operators-with-ginkgo-gomega-and-the-operator-runtime-6ad4c2492379)
+- [Speeding Up Kubernetes Controller Integration Tests with Ginkgo Parallelism - Kevin Fan](https://kev.fan/posts/04-k8s-ginkgo-parallel-tests/)
+- [Testing your Operator project - Operator SDK](https://sdk.operatorframework.io/docs/building-operators/golang/testing/)
 
-### Game Server Networking
-- [Agones Series – Part 2: Address and Port of the Game Server - Alibaba Cloud](https://www.alibabacloud.com/blog/agones-series-part-2-address-and-port-of-the-game-server_599427)
-- [How to route UDP traffic into Kubernetes | Amazon Web Services](https://aws.amazon.com/blogs/containers/how-to-route-udp-traffic-into-kubernetes/)
-- [Network | OpenKruise](https://openkruise.io/kruisegame/user-manuals/network)
-- [Frequently Asked Questions | Agones](https://agones.dev/site/docs/faq/)
+### Kind and CI
+- [Why Your Kubernetes Tests Are Flaky (It's Not the Code) - Testkube](https://testkube.io/blog/flaky-tests-cicd-kubernetes-infrastructure-issues)
+- [Running Kubernetes e2e tests with Kind and GitHub Actions - Radu Matei](https://radu-matei.com/blog/kubernetes-e2e-github-actions/)
+- [Testing Kubernetes Operators using GitHub Actions and Kind - Medium/CodeX](https://medium.com/codex/testing-kubernetes-operators-using-github-actions-and-kind-c4086d37dd30)
+- [kind load docker-image slow - kind issue #3002](https://github.com/kubernetes-sigs/kind/issues/3002)
+- [kind load docker-image performance - kind issue #2922](https://github.com/kubernetes-sigs/kind/issues/2922)
+- [KiND - How I Wasted a Day Loading Local Docker Images - iximiuz](https://iximiuz.com/en/posts/kubernetes-kind-load-docker-image/)
+- [How to Use Docker Images with Kind - OneUptime](https://oneuptime.com/blog/post/2026-02-08-how-to-use-docker-images-with-kind-kubernetes-in-docker/view)
+- [helm/kind-action - GitHub](https://github.com/helm/kind-action)
 
-### Multi-Tenancy and Security
-- [Multi-tenancy | Kubernetes](https://kubernetes.io/docs/concepts/security/multi-tenancy/)
-- [Best Practices for Achieving Isolation in Kubernetes Multi-Tenant Environments | Loft Labs](https://www.vcluster.com/blog/best-practices-for-achieving-isolation-in-kubernetes-multi-tenant-environments)
-- [Role Based Access Control Good Practices | Kubernetes](https://kubernetes.io/docs/concepts/security/rbac-good-practices/)
-- [Kubernetes RBAC Security Pitfalls – Certitude Blog](https://certitude.consulting/blog/en/kubernetes-rbac-security-pitfalls/)
+### Playwright Testing
+- [Authentication - Playwright Docs](https://playwright.dev/docs/auth)
+- [Writing Tests - Playwright Docs](https://playwright.dev/docs/writing-tests)
+- [Continuous Integration - Playwright Docs](https://playwright.dev/docs/ci)
+- [How to Avoid Flaky Tests in Playwright - Semaphore](https://semaphore.io/blog/flaky-tests-playwright)
+- [How to Detect and Avoid Playwright Flaky Tests - BrowserStack](https://www.browserstack.com/guide/playwright-flaky-tests)
+- [17 Playwright Testing Mistakes You Should Avoid - Elaichenkov](https://elaichenkov.github.io/posts/17-playwright-testing-mistakes-you-should-avoid/)
+- [Avoiding Flaky Tests in Playwright - Better Stack](https://betterstack.com/community/guides/testing/avoid-flaky-playwright-tests/)
+- [Playwright WebSocket Testing - DZone](https://dzone.com/articles/playwright-for-real-time-applications-testing-webs)
 
-### Helm Charts
-- [Helm Charts: Development Practices from a Programmer's Perspective](https://carlosneto.dev/blog/2025/2025-02-25-helm-best-practices/)
-- [Best Practices | Helm](https://helm.sh/docs/chart_best_practices/)
+### GitHub Actions Resource Management
+- [Mastering Disk Space on GitHub Actions Runners - Gerald on IT](https://www.geraldonit.com/mastering-disk-space-on-github-actions-runners-a-deep-dive-into-cleanup-strategies-for-x64-and-arm64-runners/)
+- [Freeing disk space on GitHub Actions runners - Chris Dzombak](https://www.dzombak.com/blog/2024/09/freeing-disk-space-on-github-actions-runners/)
+- [GitHub Actions Limits - GitHub Docs](https://docs.github.com/en/actions/reference/limits)
 
-### Agones and Game Server Management
-- [Troubleshooting | Agones](https://agones.dev/site/docs/guides/troubleshooting/)
-- [Hands-On With Agones and Google Cloud Game Servers](https://www.fairwinds.com/blog/hands-on-with-agones-google-cloud-game-servers)
-
-### Kubernetes Operations
-- [StatefulSets | Kubernetes](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
-- [A Practical Guide to Kubernetes Stateful Backup and Recovery - The New Stack](https://thenewstack.io/a-practical-guide-to-kubernetes-stateful-backup-and-recovery/)
-- [Simplifying DNS Automation with ExternalDNS and cert-manager](https://komodor.com/blog/simplifying-dns-automation-with-externaldns-and-cert-manager/)
-- [Using Finalizers to Control Deletion | Kubernetes](https://kubernetes.io/blog/2021/05/14/using-finalizers-to-control-deletion/)
-- [How to Manage Kubernetes Finalizers and Stuck Resources | Kubernetes Recipe Book](https://kubernetes.recipes/recipes/troubleshooting/stuck-resources-finalizers/)
-
-### Prometheus and Observability
-- [How to manage high cardinality metrics in Prometheus and Kubernetes | Grafana Labs](https://grafana.com/blog/2022/10/20/how-to-manage-high-cardinality-metrics-in-prometheus-and-kubernetes/)
-- [Optimizing Prometheus Storage: Handling High-Cardinality Metrics at Scale | Platform Engineers](https://medium.com/@platform.engineers/optimizing-prometheus-storage-handling-high-cardinality-metrics-at-scale-31140c92a7e4)
-
-### Graceful Shutdown
-- [Gracefully Terminating Pods in Kubernetes: Handling SIGTERM | Amila De Silva](https://jaadds.medium.com/gracefully-terminating-pods-in-kubernetes-handling-sigterm-fb0d60c7e983)
-- [Kubernetes best practices: terminating with grace | Google Cloud Blog](https://cloud.google.com/blog/products/containers-kubernetes/kubernetes-best-practices-terminating-with-grace)
-
-### Leader Election and High Availability
-- [Implementing Leader Election in Kubernetes: A Practical Approach | Manish Kaushik](https://medium.com/@manish.kaushik_52893/implementing-leader-election-in-kubernetes-a-practical-approach-for-single-pod-execution-34aa5fb003dd)
-- [Leader election in Kubernetes using client-go | Mayank Shah](https://itnext.io/leader-election-in-kubernetes-using-client-go-a19cbe7a9a85)
-
-### Minikube vs Production
-- [MiniKube VS Production : Need Production - Discuss Kubernetes](https://discuss.kubernetes.io/t/minikube-vs-production-need-production/19249)
-- [What Is Minikube? | Sysdig](https://www.sysdig.com/learn-cloud-native/what-is-minikube)
-
-### OpenAPI and CRD Schema
-- [How Kubernetes Validates Custom Resources | Daniel Mangum](https://danielmangum.com/posts/how-kubernetes-validates-custom-resources/)
-- [Future of CRDs: Structural Schemas | Kubernetes](https://kubernetes.io/blog/2019/06/20/crd-structural-schema/)
+### Kubernetes Test Isolation and Flakiness
+- [Kubernetes Community - Flaky Tests Guide](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-testing/flaky-tests.md)
+- [Resolve Stuck Namespace Deletions by Cleaning Finalizers - Medium](https://medium.com/@sirtcp/how-to-resolve-stuck-kubernetes-namespace-deletions-by-cleaning-finalizers-38190bf3165f)
+- [kind create cluster flaky - kind issue #1865](https://github.com/kubernetes-sigs/kind/issues/1865)
 
 ---
-*Pitfalls research for: Kterodactyl - Kubernetes-native game server management panel*
-*Researched: 2026-02-09*
+*Pitfalls research for: Kterodactyl v1.1 E2E CI/CD Test Suite*
+*Researched: 2026-02-17*
