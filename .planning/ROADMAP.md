@@ -92,11 +92,11 @@ Plans:
   3. A test signs up a new user, logs in, and verifies the dashboard loads
   4. A test creates a game server and verifies it appears in the server list
   5. A test deletes a game server and verifies it is removed from the server list
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: TBD
-- [ ] 16-02: TBD
+- [ ] 16-01-PLAN.md — Playwright project init, auth fixtures, setup project, app-side token injection, Makefile target
+- [ ] 16-02-PLAN.md — Auth E2E tests (login, sign up) and server CRUD E2E tests (create, list, delete)
 
 ### Phase 17: CI Pipeline
 **Goal**: Every pull request automatically runs the full test suite with clear pass/fail status and failure diagnostics
