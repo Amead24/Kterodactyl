@@ -77,10 +77,10 @@ Plans:
   1. `make test-e2e-setup` (or equivalent target) creates a kind cluster, builds and loads the operator image, installs via Helm, and waits for readiness — app is accessible at localhost:8080
   2. `make test-e2e-teardown` (or equivalent target) deletes the kind cluster and all associated resources cleanly
   3. A developer can tear down and recreate the environment repeatedly without manual cleanup steps
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 15-01: TBD
+- [ ] 15-01-PLAN.md — Kind cluster lifecycle with Helm deployment, NodePort access, and Makefile targets
 
 ### Phase 16: Playwright E2E Tests
 **Goal**: Browser-based tests verify core user journeys against a live Kterodactyl deployment in kind
