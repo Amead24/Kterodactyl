@@ -74,6 +74,7 @@ test-playwright: ## Run Playwright browser tests.
 # CertManager is installed by default; skip with:
 # - CERT_MANAGER_INSTALL_SKIP=true
 KIND_CLUSTER ?= kterodactyl-test-e2e
+E2E_IMG ?= kterodactyl:test
 
 .PHONY: setup-test-e2e
 setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
@@ -97,6 +98,22 @@ test-e2e: setup-test-e2e manifests generate fmt vet ## Run the e2e tests. Expect
 .PHONY: cleanup-test-e2e
 cleanup-test-e2e: ## Tear down the Kind cluster used for e2e tests
 	@$(KIND) delete cluster --name $(KIND_CLUSTER)
+
+.PHONY: test-e2e-setup
+test-e2e-setup: ## Create kind cluster with Helm-deployed Kterodactyl (accessible at localhost:8080).
+	@$(KIND) delete cluster --name $(KIND_CLUSTER) 2>/dev/null || true
+	$(KIND) create cluster --name $(KIND_CLUSTER) --config hack/kind-config.yaml
+	$(MAKE) docker-build IMG=$(E2E_IMG)
+	$(KIND) load docker-image $(E2E_IMG) --name $(KIND_CLUSTER)
+	helm install kterodactyl chart/ \
+		-f hack/ci-values.yaml \
+		-n kterodactyl-system --create-namespace --wait --timeout 3m
+	bash hack/wait-for-ready.sh kterodactyl-system 180s
+	@echo "Kterodactyl is ready at http://localhost:8080"
+
+.PHONY: test-e2e-teardown
+test-e2e-teardown: ## Delete the kind cluster and all associated resources.
+	$(KIND) delete cluster --name $(KIND_CLUSTER)
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
