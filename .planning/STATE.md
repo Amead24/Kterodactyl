@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** v1.1 End-to-End CI/CD Test Suite — Phase 15 (Kind Cluster Environment)
+**Current focus:** v1.1 End-to-End CI/CD Test Suite — Phase 16 (Playwright E2E Tests)
 
 ## Current Position
 
-**Phase:** 15 of 18 (Kind Cluster Environment)
-**Current Plan:** Not started
-**Total Plans in Phase:** 1
-**Status:** Milestone complete
+**Phase:** 16 of 18 (Playwright E2E Tests)
+**Current Plan:** 02 of 02
+**Total Plans in Phase:** 2
+**Status:** In progress
 **Last Activity:** 2026-02-19
 
-Progress: [█████░░░░░] 50% (v1.1)
+Progress: [██████░░░░] 57% (v1.1)
 
 ## Performance Metrics
 
@@ -25,12 +25,13 @@ Progress: [█████░░░░░] 50% (v1.1)
 - Total execution time: 2.76 hours
 
 **v1.1 Velocity:**
-- Total plans completed: 3
-- Average duration: 4min
-- Total execution time: 0.18 hours
+- Total plans completed: 4
+- Average duration: 5min
+- Total execution time: 0.35 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
+| 16 | 01 | 10min | 1 | 9 |
 | 15 | 01 | 2min | 2 | 6 |
 | 14 | 01 | 5min | 2 | 2 |
 | 13 | 01 | 4min | 2 | 3 |
@@ -59,6 +60,9 @@ v1.1 decisions:
 - [Phase 15]: Port chain 30080->8080: kind containerPort matches nodePort, hostPort matches curl target
 - [Phase 15]: pullPolicy Never mandatory for kind-loaded images (no registry)
 - [Phase 15]: Coexist with existing setup-test-e2e/cleanup-test-e2e targets (no removal)
+- [Phase 16]: addInitScript + window.__KTERODACTYL_E2E_TOKEN for Zustand token injection (no persist middleware)
+- [Phase 16]: hack/hash-password.go over pre-computed hash constant (uses project auth package, always correct)
+- [Phase 16]: Setup project pattern (not globalSetup) for HTML report and trace integration
 
 ### Pending Todos
 
@@ -77,5 +81,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 15-01-PLAN.md (Phase 15 complete)
-Resume file: .planning/phases/15-kind-cluster-environment/15-01-SUMMARY.md
+Stopped at: Completed 16-01-PLAN.md
+Resume file: .planning/phases/16-playwright-e2e-tests/16-01-SUMMARY.md
