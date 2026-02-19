@@ -12,10 +12,10 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 **Phase:** 16 of 18 (Playwright E2E Tests)
 **Current Plan:** 02 of 02
 **Total Plans in Phase:** 2
-**Status:** In progress
+**Status:** Phase complete — ready for verification
 **Last Activity:** 2026-02-19
 
-Progress: [██████░░░░] 57% (v1.1)
+Progress: [███████░░░] 71% (v1.1)
 
 ## Performance Metrics
 
@@ -25,18 +25,19 @@ Progress: [██████░░░░] 57% (v1.1)
 - Total execution time: 2.76 hours
 
 **v1.1 Velocity:**
-- Total plans completed: 4
-- Average duration: 5min
-- Total execution time: 0.35 hours
+- Total plans completed: 5
+- Average duration: 4min
+- Total execution time: 0.37 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
+| 16 | 02 | 2min | 2 | 2 |
 | 16 | 01 | 10min | 1 | 9 |
 | 15 | 01 | 2min | 2 | 6 |
 | 14 | 01 | 5min | 2 | 2 |
 | 13 | 01 | 4min | 2 | 3 |
-| Phase 13 P03 | 3min | 2 tasks | 1 files |
-| Phase 13 P02 | 3min | 2 tasks | 2 files |
+| 13 | 03 | 3min | 2 | 1 |
+| 13 | 02 | 3min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ v1.1 decisions:
 - [Phase 16]: addInitScript + window.__KTERODACTYL_E2E_TOKEN for Zustand token injection (no persist middleware)
 - [Phase 16]: hack/hash-password.go over pre-computed hash constant (uses project auth package, always correct)
 - [Phase 16]: Setup project pattern (not globalSetup) for HTML report and trace integration
+- [Phase 16]: page.request.post for invite API call in signup test (browser context, not separate HTTP client)
+- [Phase 16]: test.describe.serial for server CRUD to ensure create-before-list-before-delete ordering
 
 ### Pending Todos
 
@@ -81,5 +84,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 16-01-PLAN.md
-Resume file: .planning/phases/16-playwright-e2e-tests/16-01-SUMMARY.md
+Stopped at: Completed 16-02-PLAN.md (Phase 16 complete)
+Resume file: .planning/phases/16-playwright-e2e-tests/16-02-SUMMARY.md

@@ -25,9 +25,9 @@ Requirements for v1.1 End-to-End CI/CD Test Suite. Each maps to roadmap phases.
 
 - [x] **PW-01**: Playwright project is initialized with config, auth fixtures, and Chromium-only setup in a top-level `e2e/` directory
 - [x] **PW-02**: Auth fixture creates storageState for admin and regular user roles
-- [ ] **PW-03**: User can sign up, log in, and see the dashboard in an E2E test
-- [ ] **PW-04**: User can create a game server and see it in the server list in an E2E test
-- [ ] **PW-05**: User can delete a game server in an E2E test
+- [x] **PW-03**: User can sign up, log in, and see the dashboard in an E2E test
+- [x] **PW-04**: User can create a game server and see it in the server list in an E2E test
+- [x] **PW-05**: User can delete a game server in an E2E test
 
 ### CI Pipeline
 
@@ -97,9 +97,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GAPI-04 | Phase 14 | Complete |
 | PW-01 | Phase 16 | Complete |
 | PW-02 | Phase 16 | Complete |
-| PW-03 | Phase 16 | Pending |
-| PW-04 | Phase 16 | Pending |
-| PW-05 | Phase 16 | Pending |
+| PW-03 | Phase 16 | Complete |
+| PW-04 | Phase 16 | Complete |
+| PW-05 | Phase 16 | Complete |
 | CI-01 | Phase 17 | Pending |
 | CI-02 | Phase 17 | Pending |
 | CI-03 | Phase 17 | Pending |
