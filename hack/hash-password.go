@@ -1,0 +1,23 @@
+//go:build ignore
+
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/kterodactyl/kterodactyl/internal/auth"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: hash-password <password>")
+		os.Exit(1)
+	}
+	hash, err := auth.HashPassword(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Print(hash)
+}

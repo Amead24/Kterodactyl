@@ -37,3 +37,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   logout: () => set({ token: null, user: null }),
 }));
+
+// E2E test support: if a token was injected via Playwright's addInitScript(),
+// populate the store immediately so ProtectedRoute doesn't redirect to /login.
+if (typeof window !== 'undefined' && (window as any).__KTERODACTYL_E2E_TOKEN) {
+  useAuthStore.getState().setToken((window as any).__KTERODACTYL_E2E_TOKEN);
+}

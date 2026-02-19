@@ -67,7 +67,7 @@ test-integration: ## Run integration tests.
 
 .PHONY: test-playwright
 test-playwright: ## Run Playwright browser tests.
-	@echo "No Playwright tests yet -- see Phase 16"
+	cd e2e && npx playwright test
 
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
