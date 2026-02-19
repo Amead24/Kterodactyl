@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** v1.1 End-to-End CI/CD Test Suite — Phase 14 (Go API Integration Tests)
+**Current focus:** v1.1 End-to-End CI/CD Test Suite — Phase 15 (Kind Cluster Environment)
 
 ## Current Position
 
-**Phase:** 14 of 18 (Go API Integration Tests)
-**Current Plan:** Not started
+**Phase:** 15 of 18 (Kind Cluster Environment)
+**Current Plan:** 1 of 1 (complete)
 **Total Plans in Phase:** 1
-**Status:** Milestone complete
-**Last Activity:** 2026-02-18
+**Status:** Phase complete
+**Last Activity:** 2026-02-19
 
-Progress: [████░░░░░░] 43% (v1.1)
+Progress: [█████░░░░░] 50% (v1.1)
 
 ## Performance Metrics
 
@@ -25,12 +25,13 @@ Progress: [████░░░░░░] 43% (v1.1)
 - Total execution time: 2.76 hours
 
 **v1.1 Velocity:**
-- Total plans completed: 2
-- Average duration: 5min
-- Total execution time: 0.15 hours
+- Total plans completed: 3
+- Average duration: 4min
+- Total execution time: 0.18 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
+| 15 | 01 | 2min | 2 | 6 |
 | 14 | 01 | 5min | 2 | 2 |
 | 13 | 01 | 4min | 2 | 3 |
 | Phase 13 P03 | 3min | 2 tasks | 1 files |
@@ -54,6 +55,10 @@ v1.1 decisions:
 - [Phase 14]: Build tag //go:build integration for test isolation (matches e2e convention)
 - [Phase 14]: Single sequential TestAPILifecycle (causally dependent steps)
 - [Phase 14]: Blackbox map[string]interface{} responses (no imported types)
+- [Phase 15]: listenAddress 0.0.0.0 for WSL2 compatibility (not 127.0.0.1)
+- [Phase 15]: Port chain 30080->8080: kind containerPort matches nodePort, hostPort matches curl target
+- [Phase 15]: pullPolicy Never mandatory for kind-loaded images (no registry)
+- [Phase 15]: Coexist with existing setup-test-e2e/cleanup-test-e2e targets (no removal)
 
 ### Pending Todos
 
@@ -71,6 +76,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-02-18
-Stopped at: Completed 14-01-PLAN.md (Phase 14 complete)
-Resume file: .planning/phases/14-go-api-integration-tests/14-01-SUMMARY.md
+Last session: 2026-02-19
+Stopped at: Completed 15-01-PLAN.md (Phase 15 complete)
+Resume file: .planning/phases/15-kind-cluster-environment/15-01-SUMMARY.md

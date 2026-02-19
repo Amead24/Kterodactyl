@@ -33,7 +33,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 - [x] **Phase 13: Go Test Foundation** - Fix envtest cached-client pattern, add handler-level httptest tests for untested endpoints, establish Makefile targets and test isolation (completed 2026-02-18)
 - [x] **Phase 14: Go API Integration Tests** - Multi-step blackbox lifecycle tests in test/integration/ using httptest.NewServer with real TCP round-trips (completed 2026-02-18)
-- [ ] **Phase 15: Kind Cluster Environment** - Kind cluster lifecycle with Helm-based deployment, NodePort access, and Makefile targets for create/teardown
+- [x] **Phase 15: Kind Cluster Environment** - Kind cluster lifecycle with Helm-based deployment, NodePort access, and Makefile targets for create/teardown (completed 2026-02-19)
 - [ ] **Phase 16: Playwright E2E Tests** - Browser tests against live app in kind covering auth, server CRUD, and admin flows
 - [ ] **Phase 17: CI Pipeline** - Unified GitHub Actions workflow running all test tiers with job dependencies, failure artifacts, and cleanup
 - [ ] **Phase 18: Coverage and Test Backlog** - Go coverage reporting in CI and test backlog documenting untested features for future milestones
@@ -146,7 +146,7 @@ Phases execute in numeric order: 13 -> 14 -> 15 -> 16 -> 17 -> 18
 | 12. Documentation | v1.0 | 2/2 | Complete | 2026-02-13 |
 | 13. Go Test Foundation | 3/3 | Complete    | 2026-02-18 | - |
 | 14. Go API Integration Tests | 1/1 | Complete    | 2026-02-18 | - |
-| 15. Kind Cluster Environment | v1.1 | 0/? | Not started | - |
+| 15. Kind Cluster Environment | 1/1 | Complete   | 2026-02-19 | - |
 | 16. Playwright E2E Tests | v1.1 | 0/? | Not started | - |
 | 17. CI Pipeline | v1.1 | 0/? | Not started | - |
 | 18. Coverage and Test Backlog | v1.1 | 0/? | Not started | - |
