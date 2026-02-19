@@ -12,5 +12,8 @@ spec:
     port: {{ .Values.apiService.port }}
     targetPort: 8080
     protocol: TCP
+    {{- if and (eq .Values.apiService.type "NodePort") .Values.apiService.nodePort }}
+    nodePort: {{ .Values.apiService.nodePort }}
+    {{- end }}
   selector:
     {{- include "kterodactyl.selectorLabels" . | nindent 4 }}

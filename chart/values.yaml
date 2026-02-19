@@ -58,6 +58,8 @@ apiService:
   type: ClusterIP
   # -- API server port
   port: 8080
+  # -- NodePort value (only used when apiService.type is NodePort)
+  nodePort: ""
 
 # -- Metrics configuration
 metrics:
