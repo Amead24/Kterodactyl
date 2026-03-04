@@ -1,5 +1,30 @@
 # Milestones
 
+## v1.1 End-to-End CI/CD Test Suite (Shipped: 2026-03-04)
+
+**Delivered:** Reproducible test suite with Go API integration tests, Playwright E2E browser tests, kind-based test environment, and unified GitHub Actions CI pipeline.
+
+**Phases completed:** 5 phases (13-17), 8 plans, 15 tasks
+**Timeline:** 15 days (2026-02-18 to 2026-03-04)
+**Codebase:** 13,210 Go + 5,923 TS/TSX LOC (19,133 total)
+**Commits:** 39 (57 files changed, +7,544 / -161)
+**Git range:** 6c1fdb4 → 4068e70
+**Test files:** 16 Go test files + 2 Playwright spec files
+
+**Key accomplishments:**
+- Fixed envtest cached-client pattern and built handler-level httptest tests for mod, backup, and metrics endpoints
+- Created multi-step API lifecycle integration test (register → create → get → delete) via httptest.NewServer
+- Kind cluster environment with Helm deployment, NodePort access, and single-command setup/teardown
+- Playwright E2E test suite with auth fixtures (admin + user roles), signup/login, and server CRUD tests
+- Unified GitHub Actions CI pipeline with 5-job dependency chain, failure artifact uploads, and guaranteed cleanup
+
+### Known Gaps
+
+- **COV-01**: Go test coverage report not yet generated in CI (deferred — Phase 18 unexecuted)
+- **COV-02**: Test backlog document not yet created (deferred — Phase 18 unexecuted)
+
+---
+
 ## v1.0 MVP (Shipped: 2026-02-13)
 
 **Delivered:** Kubernetes-native game server management panel with CRD operator, REST API, React UI, mod support, S3 backups, Prometheus metrics, Helm chart, and Docusaurus documentation.

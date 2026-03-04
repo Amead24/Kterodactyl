@@ -4,7 +4,7 @@
 
 A Kubernetes-native game server management panel — a modern, open-source alternative to Pterodactyl that replaces Wings, Docker, and Postgres with CRDs, a custom operator, and k8s-native primitives. Admins install via Helm chart, users pick a game, configure it, and get a running server at `<game>.<username>.domain.com`. Community-contributed game definitions make adding new games as simple as opening a PR.
 
-Shipped as a single Go binary with embedded React SPA, installing via `helm install` with 50+ configurable values.
+Shipped as a single Go binary with embedded React SPA, installing via `helm install` with 50+ configurable values. Backed by a CI pipeline running Go unit/integration tests, Playwright E2E tests against a kind cluster, and unified GitHub Actions workflow.
 
 ## Core Value
 
@@ -30,16 +30,17 @@ Admins can deploy a single Helm chart and give their users self-service game ser
 - ✓ Mod support: users upload mods mounted via PersistentVolumes, server restarts on apply — v1.0
 - ✓ WebSocket console with real-time log streaming and command execution — v1.0
 - ✓ Namespace isolation with ResourceQuotas, LimitRanges, and NetworkPolicies — v1.0
+- ✓ Kind-based test environment for reproducible local and CI testing — v1.1
+- ✓ Playwright E2E tests covering happy-path user flows (auth, server CRUD) — v1.1
+- ✓ Go API integration tests (httptest-based handler + lifecycle tests) — v1.1
+- ✓ GitHub Actions CI pipeline running full test suite on PRs — v1.1
 
 ### Active
 
-<!-- Current milestone: v1.1 End-to-End CI/CD Test Suite -->
-
-- [ ] Kind-based test environment for reproducible local and CI testing
-- [ ] Playwright E2E tests covering happy-path user flows
-- [ ] Go API integration tests (httptest-based)
-- [ ] GitHub Actions CI pipeline running full test suite on PRs
-- [ ] Test backlog tracking untested flows for future milestones
+- [ ] Go test coverage reporting in CI
+- [ ] Test backlog documenting untested features for future milestones
+- [ ] Community game definition repo with PR-based contribution model
+- [ ] OIDC/SSO integration (Google, Steam, Apple via Dex/Keycloak)
 
 ### Future
 
@@ -63,17 +64,20 @@ Admins can deploy a single Helm chart and give their users self-service game ser
 
 ## Context
 
-**Shipped v1.0** with 28,299 LOC (12,043 Go + 16,256 TypeScript/TSX) across 12 phases in 4 days.
-**Tech stack:** Go (controller-runtime, chi v5), React (Vite, Tailwind, shadcn, RJSF), Docusaurus v3.
+**Shipped v1.1** with 19,133 LOC (13,210 Go + 5,923 TS/TSX) across 17 phases total.
+**Tech stack:** Go (controller-runtime, chi v5), React (Vite, Tailwind, shadcn, RJSF), Docusaurus v3, Playwright, kind.
 **Architecture:** Single binary — operator + API + embedded SPA. Dual controllers (GameServer + DNS) in one manager.
+**Testing:** 16 Go test files (envtest + httptest), 2 Playwright E2E specs, kind cluster test environment, unified GitHub Actions CI.
 **Game support:** Minecraft Java Edition ships as reference game; extensible via folder-per-game manifests with JSON Schema parameter validation.
 **Infrastructure:** Talos K8s cluster, Cilium CNI, Cloudflare Tunnel for domain routing.
 
-**Known tech debt (from v1.0 audit):**
+**Known tech debt:**
 - DNS requires human testing with live Gateway API controller and ExternalDNS
 - Relative path `"games/"` in cmd/main.go relies on container WORKDIR
 - handleUploadMod and handleRestoreBackup bypass IsValidTransition guard
 - Duplicate s3CredentialsSecretName constant across controller and API handler
+- Go test coverage not yet reported in CI (COV-01 deferred from v1.1)
+- No formal test backlog document (COV-02 deferred from v1.1)
 
 ## Constraints
 
@@ -104,16 +108,12 @@ Admins can deploy a single Helm chart and give their users self-service game ser
 | Chi v5 router with httprate | Lightweight, composable middleware, good chi ecosystem | ✓ Good — clean middleware chains |
 | RJSF for dynamic forms | Automatic form generation from JSON Schema; no custom form code per game | ✓ Good — Draft-07 validator sufficient |
 
-## Current Milestone: v1.1 End-to-End CI/CD Test Suite
+## Milestones
 
-**Goal:** Add a reproducible test suite (Playwright E2E + Go API integration) with a kind-based environment, then wire it into GitHub Actions CI.
+- **v1.0 MVP** — Shipped 2026-02-13 (12 phases, 34 plans)
+- **v1.1 End-to-End CI/CD Test Suite** — Shipped 2026-03-04 (5 phases, 8 plans)
 
-**Target features:**
-- Kind cluster test environment (spin up, deploy via Helm, tear down)
-- Playwright E2E tests for happy-path user flows (signup, login, create/manage/delete server, admin)
-- Go API integration tests using httptest
-- GitHub Actions pipeline running full suite on PRs
-- Comprehensive test backlog for future coverage expansion
+See `.planning/MILESTONES.md` for full details.
 
 ---
-*Last updated: 2026-02-17 after v1.1 milestone started*
+*Last updated: 2026-03-04 after v1.1 milestone*
