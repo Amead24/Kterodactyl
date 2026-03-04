@@ -75,3 +75,4 @@ Adding a new game is as simple as creating a `games/<name>/` directory with a `m
 ## License
 
 Copyright 2026. Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+# Kterodactyl
