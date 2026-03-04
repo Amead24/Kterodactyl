@@ -107,10 +107,10 @@ Plans:
   2. When Playwright tests fail, traces, screenshots, and Kubernetes pod logs are uploaded as downloadable GitHub Actions artifacts
   3. CI performs disk cleanup before kind cluster creation to prevent runner disk exhaustion
   4. The kind cluster is always deleted after E2E tests complete, even when tests fail
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 17-01: TBD
+- [ ] 17-01-PLAN.md — Unified ci.yml with 5 jobs (lint, unit-test, integration-test, e2e-test, playwright), failure artifacts, disk cleanup, and always-run kind cleanup
 
 ### Phase 18: Coverage and Test Backlog
 **Goal**: Test coverage is measurable and gaps are explicitly documented for future milestones
@@ -148,5 +148,5 @@ Phases execute in numeric order: 13 -> 14 -> 15 -> 16 -> 17 -> 18
 | 14. Go API Integration Tests | 1/1 | Complete    | 2026-02-18 | - |
 | 15. Kind Cluster Environment | 1/1 | Complete    | 2026-02-19 | - |
 | 16. Playwright E2E Tests | 2/2 | Complete    | 2026-02-19 | - |
-| 17. CI Pipeline | v1.1 | 0/? | Not started | - |
+| 17. CI Pipeline | v1.1 | 0/1 | Not started | - |
 | 18. Coverage and Test Backlog | v1.1 | 0/? | Not started | - |
