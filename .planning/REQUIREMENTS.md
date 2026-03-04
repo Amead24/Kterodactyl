@@ -31,10 +31,10 @@ Requirements for v1.1 End-to-End CI/CD Test Suite. Each maps to roadmap phases.
 
 ### CI Pipeline
 
-- [ ] **CI-01**: Unified GitHub Actions workflow runs lint -> unit tests -> integration tests -> E2E tests -> Playwright tests with job dependencies
-- [ ] **CI-02**: CI pipeline uploads Playwright traces, screenshots, and k8s logs as artifacts on failure
-- [ ] **CI-03**: CI pipeline performs disk cleanup before heavy steps to prevent space exhaustion
-- [ ] **CI-04**: Kind cluster is always cleaned up after E2E tests, even on failure
+- [x] **CI-01**: Unified GitHub Actions workflow runs lint -> unit tests -> integration tests -> E2E tests -> Playwright tests with job dependencies
+- [x] **CI-02**: CI pipeline uploads Playwright traces, screenshots, and k8s logs as artifacts on failure
+- [x] **CI-03**: CI pipeline performs disk cleanup before heavy steps to prevent space exhaustion
+- [x] **CI-04**: Kind cluster is always cleaned up after E2E tests, even on failure
 
 ### Coverage Tracking
 
@@ -100,10 +100,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PW-03 | Phase 16 | Complete |
 | PW-04 | Phase 16 | Complete |
 | PW-05 | Phase 16 | Complete |
-| CI-01 | Phase 17 | Pending |
-| CI-02 | Phase 17 | Pending |
-| CI-03 | Phase 17 | Pending |
-| CI-04 | Phase 17 | Pending |
+| CI-01 | Phase 17 | Complete |
+| CI-02 | Phase 17 | Complete |
+| CI-03 | Phase 17 | Complete |
+| CI-04 | Phase 17 | Complete |
 | COV-01 | Phase 18 | Pending |
 | COV-02 | Phase 18 | Pending |
 

@@ -35,7 +35,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 14: Go API Integration Tests** - Multi-step blackbox lifecycle tests in test/integration/ using httptest.NewServer with real TCP round-trips (completed 2026-02-18)
 - [x] **Phase 15: Kind Cluster Environment** - Kind cluster lifecycle with Helm-based deployment, NodePort access, and Makefile targets for create/teardown (completed 2026-02-19)
 - [x] **Phase 16: Playwright E2E Tests** - Browser tests against live app in kind covering auth, server CRUD, and admin flows (completed 2026-02-19)
-- [ ] **Phase 17: CI Pipeline** - Unified GitHub Actions workflow running all test tiers with job dependencies, failure artifacts, and cleanup
+- [x] **Phase 17: CI Pipeline** - Unified GitHub Actions workflow running all test tiers with job dependencies, failure artifacts, and cleanup (completed 2026-03-04)
 - [ ] **Phase 18: Coverage and Test Backlog** - Go coverage reporting in CI and test backlog documenting untested features for future milestones
 
 ## Phase Details
@@ -148,5 +148,5 @@ Phases execute in numeric order: 13 -> 14 -> 15 -> 16 -> 17 -> 18
 | 14. Go API Integration Tests | 1/1 | Complete    | 2026-02-18 | - |
 | 15. Kind Cluster Environment | 1/1 | Complete    | 2026-02-19 | - |
 | 16. Playwright E2E Tests | 2/2 | Complete    | 2026-02-19 | - |
-| 17. CI Pipeline | v1.1 | 0/1 | Not started | - |
+| 17. CI Pipeline | 1/1 | Complete   | 2026-03-04 | - |
 | 18. Coverage and Test Backlog | v1.1 | 0/? | Not started | - |

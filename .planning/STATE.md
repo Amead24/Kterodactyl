@@ -1,3 +1,20 @@
+---
+gsd_state_version: 1.0
+milestone: v1.1
+milestone_name: End-to-End CI/CD Test Suite
+current_plan: Not started
+status: completed
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-03-04T19:16:43.334Z"
+last_activity: 2026-02-19
+progress:
+  total_phases: 6
+  completed_phases: 5
+  total_plans: 8
+  completed_plans: 8
+  percent: 100
+---
+
 # Project State
 
 ## Project Reference
@@ -5,17 +22,17 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Admins can deploy a single Helm chart and give their users self-service game server provisioning backed entirely by Kubernetes
-**Current focus:** v1.1 End-to-End CI/CD Test Suite — Phase 16 (Playwright E2E Tests)
+**Current focus:** v1.1 End-to-End CI/CD Test Suite — Phase 17 (CI Pipeline)
 
 ## Current Position
 
-**Phase:** 16 of 18 (Playwright E2E Tests)
-**Current Plan:** Not started
-**Total Plans in Phase:** 2
+**Phase:** 17 of 18 (CI Pipeline)
+**Current Plan:** Complete
+**Total Plans in Phase:** 1
 **Status:** Milestone complete
-**Last Activity:** 2026-02-19
+**Last Activity:** 2026-03-04
 
-Progress: [███████░░░] 71% (v1.1)
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -25,9 +42,9 @@ Progress: [███████░░░] 71% (v1.1)
 - Total execution time: 2.76 hours
 
 **v1.1 Velocity:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: 4min
-- Total execution time: 0.37 hours
+- Total execution time: 0.40 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -38,6 +55,7 @@ Progress: [███████░░░] 71% (v1.1)
 | 13 | 01 | 4min | 2 | 3 |
 | 13 | 03 | 3min | 2 | 1 |
 | 13 | 02 | 3min | 2 | 2 |
+| 17 | 01 | 2min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -66,6 +84,9 @@ v1.1 decisions:
 - [Phase 16]: Setup project pattern (not globalSetup) for HTML report and trace integration
 - [Phase 16]: page.request.post for invite API call in signup test (browser context, not separate HTTP client)
 - [Phase 16]: test.describe.serial for server CRUD to ensure create-before-list-before-delete ordering
+- [Phase 17]: Single ci.yml over separate workflow files to prevent duplicate CI runs
+- [Phase 17]: Explicit go test in e2e-test job (not make test-e2e) for if: always() cleanup
+- [Phase 17]: Separate e2e-test and playwright jobs for isolation and distinct failure artifacts
 
 ### Pending Todos
 
@@ -83,6 +104,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: Completed 16-02-PLAN.md (Phase 16 complete)
-Resume file: .planning/phases/16-playwright-e2e-tests/16-02-SUMMARY.md
+Last session: 2026-03-04T19:16:43.331Z
+Stopped at: Completed 17-01-PLAN.md
+Resume file: .planning/phases/17-ci-pipeline/17-01-SUMMARY.md
