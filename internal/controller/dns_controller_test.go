@@ -39,9 +39,9 @@ var _ = Describe("DNS Controller", func() {
 		timeout  = 10 * time.Second
 		interval = 250 * time.Millisecond
 
-		testBaseDomain      = "test.example.com"
-		testGatewayName     = "test-gateway"
-		testGatewayNs       = "test-gateway-ns"
+		testBaseDomain  = "test.example.com"
+		testGatewayName = "test-gateway"
+		testGatewayNs   = "test-gateway-ns"
 	)
 
 	// testCounter generates unique namespace names across tests.

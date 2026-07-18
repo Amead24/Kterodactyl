@@ -24,9 +24,9 @@ import (
 	"path/filepath"
 	"sort"
 
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"gopkg.in/yaml.v3"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 

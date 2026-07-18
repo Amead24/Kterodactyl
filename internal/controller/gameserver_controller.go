@@ -151,7 +151,7 @@ func DefaultAdminConfig() *AdminConfig {
 		MaxMemory:                  resource.MustParse("8Gi"),
 		MinCPU:                     resource.MustParse("100m"),
 		MinMemory:                  resource.MustParse("128Mi"),
-		BaseDomain:                 "",                    // Empty means DNS disabled
+		BaseDomain:                 "", // Empty means DNS disabled
 		GatewayName:                "kterodactyl-gateway",
 		GatewayNamespace:           "kterodactyl-system",
 		GatewayControllerNamespace: "envoy-gateway-system",
@@ -165,7 +165,7 @@ func DefaultAdminConfig() *AdminConfig {
 		SMTPFrom:                   "",
 		ModStorageSize:             resource.MustParse("1Gi"),
 		ModStorageClass:            "",
-		BackupS3Endpoint:           "",                    // Empty means backup not configured
+		BackupS3Endpoint:           "", // Empty means backup not configured
 		BackupS3Bucket:             "kterodactyl-backups",
 		BackupS3Region:             "us-east-1",
 		BackupS3UseSSL:             false,

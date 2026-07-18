@@ -189,7 +189,9 @@ func (s *Server) handleConsole(w http.ResponseWriter, r *http.Request) {
 }
 
 // streamPodLogs streams pod logs via Follow=true and sends them through the write channel.
-func (s *Server) streamPodLogs(ctx context.Context, cancel context.CancelFunc, namespace, serverName string, writeCh chan<- []byte, log interface{ Error(error, string, ...interface{}) }) {
+func (s *Server) streamPodLogs(ctx context.Context, cancel context.CancelFunc, namespace, serverName string, writeCh chan<- []byte, log interface {
+	Error(error, string, ...interface{})
+}) {
 	tailLines := logTailLines
 	req := s.clientset.CoreV1().Pods(namespace).GetLogs(serverName, &corev1.PodLogOptions{
 		Container: "gameserver",
@@ -238,7 +240,9 @@ func (s *Server) streamPodLogs(ctx context.Context, cancel context.CancelFunc, n
 }
 
 // readCommands reads WebSocket messages from the client and executes commands in the pod.
-func (s *Server) readCommands(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, namespace, serverName string, writeCh chan<- []byte, log interface{ Error(error, string, ...interface{}) }) {
+func (s *Server) readCommands(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, namespace, serverName string, writeCh chan<- []byte, log interface {
+	Error(error, string, ...interface{})
+}) {
 	defer cancel()
 
 	for {
@@ -263,7 +267,9 @@ func (s *Server) readCommands(ctx context.Context, cancel context.CancelFunc, co
 }
 
 // execCommand executes a command in the game server pod via SPDY exec.
-func (s *Server) execCommand(ctx context.Context, namespace, serverName, command string, writeCh chan<- []byte, log interface{ Error(error, string, ...interface{}) }) {
+func (s *Server) execCommand(ctx context.Context, namespace, serverName, command string, writeCh chan<- []byte, log interface {
+	Error(error, string, ...interface{})
+}) {
 	req := s.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").Name(serverName).Namespace(namespace).
 		SubResource("exec").

@@ -585,7 +585,7 @@ func (r *BackupReconciler) reconcileGameServerSchedule(ctx context.Context, gs *
 			Name:      backupName,
 			Namespace: gs.Namespace,
 			Labels: map[string]string{
-				util.LabelBackupGameServer:    gs.Name,
+				util.LabelBackupGameServer:     gs.Name,
 				util.LabelManagedByKterodactyl: util.ManagedByValue,
 			},
 		},
